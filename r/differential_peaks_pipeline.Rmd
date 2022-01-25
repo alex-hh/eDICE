@@ -1,0 +1,512 @@
+---
+title: "Differential Peak Analysis"
+output: html_notebook
+---
+
+This is an R Markdown Notebook to recreate the analysis presented in the paper *Getting Personal with Epigenetics: Towards Machine-Learning-Assisted Precision Epigenomics*. The goal is to compare differential peaks in measurement data and those from imputations. 
+
+We'll be using H3K9ac tracks for cell types E025 (Adipose_Derived_Mesenchymal_Stem_Cell_Cultured_Cells) and E052 (Muscle_Satellite_Cultured_Cells). Both tracks are from the test set.
+
+Differential peak analysis requires replicates. With imputations, we get only one replicate (the prediction itself). As a work-around, we simulate replicates for the imputations. To do this, we assume a Negative Binomial distribution at every genomic bin, which is parameterized by the mean and dispersion. The mean is obtained from the imputation. For the dispersion, we choose a proxy track from the train set. Intuitively, the dispersion parameter indicates biological variability. Hence, we choose a proxy track that's biologically close to E025/E052 and has sufficient replicates. 
+
+## Download data
+First, we'll need to download data. Individual replicates for E025, E052, E023, E107 and E108 are downloaded from [here](https://egg2.wustl.edu/roadmap/data/byFileType/alignments/unconsolidated/H3K9ac/).
+
+```{bash}
+# E023
+wget https://egg2.wustl.edu/roadmap/data/byFileType/alignments/unconsolidated/H3K9ac/BI.Mesenchymal_Stem_Cell_Derived_Adipocyte_Cultured_Cells.H3K9ac.92.filt.tagAlign.gz
+wget https://egg2.wustl.edu/roadmap/data/byFileType/alignments/unconsolidated/H3K9ac/BI.Mesenchymal_Stem_Cell_Derived_Adipocyte_Cultured_Cells.H3K9ac.93.filt.tagAlign.gz
+
+# E107-E108
+wget https://egg2.wustl.edu/roadmap/data/byFileType/alignments/unconsolidated/H3K9ac/BI.Skeletal_Muscle.H3K9ac.62.filt.tagAlign.gz
+wget https://egg2.wustl.edu/roadmap/data/byFileType/alignments/unconsolidated/H3K9ac/BI.Skeletal_Muscle.H3K9ac.63.filt.tagAlign.gz
+
+# E025
+wget https://egg2.wustl.edu/roadmap/data/byFileType/alignments/unconsolidated/H3K9ac/BI.Adipose_Derived_Mesenchymal_Stem_Cell_Cultured_Cells.H3K9ac.1.2.filt.tagAlign.gz
+wget https://egg2.wustl.edu/roadmap/data/byFileType/alignments/unconsolidated/H3K9ac/BI.Adipose_Derived_Mesenchymal_Stem_Cell_Cultured_Cells.H3K9ac.1.3.filt.tagAlign.gz
+wget https://egg2.wustl.edu/roadmap/data/byFileType/alignments/unconsolidated/H3K9ac/BI.Adipose_Derived_Mesenchymal_Stem_Cell_Cultured_Cells.H3K9ac.92.filt.tagAlign.gz
+wget https://egg2.wustl.edu/roadmap/data/byFileType/alignments/unconsolidated/H3K9ac/BI.Adipose_Derived_Mesenchymal_Stem_Cell_Cultured_Cells.H3K9ac.93.filt.tagAlign.gz
+
+# E052
+wget https://egg2.wustl.edu/roadmap/data/byFileType/alignments/unconsolidated/H3K9ac/BI.Muscle_Satellite_Cultured_Cells.H3K9ac.hSKM-1.filt.tagAlign.gz
+wget https://egg2.wustl.edu/roadmap/data/byFileType/alignments/unconsolidated/H3K9ac/BI.Muscle_Satellite_Cultured_Cells.H3K9ac.hSKM-2.filt.tagAlign.gz
+wget https://egg2.wustl.edu/roadmap/data/byFileType/alignments/unconsolidated/H3K9ac/BI.Muscle_Satellite_Cultured_Cells.H3K9ac.hSKM-3.filt.tagAlign.gz
+```
+
+Organise the downloaded data into appropriate folders.
+
+## Estimate dispersion
+We want to estimate dispersion for the imputed data. To do that, we use a "proxy" track from the training set. The exact steps in estimating dispersion is as follows --
+* Choose an appropriate proxy track with at least two replicates
+* Input are unconsolidated `tagAlign` files from Roadmap. The file is converted into 25 bp bins
+* This process is repeated for each replicate in that celltype-assay
+* A count matrix for each genomic bin is computed, where each row is for every genomic bin, and each column is a replicate
+* `DESeq2` is used to compute the dispersion for each genomic bin
+
+```{r}
+library(GenomicRanges)
+library(rtracklayer)
+library(IRanges)
+library(chipseq)
+```
+
+### E025: Adipose_Derived_Mesenchymal_Stem_Cell_Cultured_Cells
+As a proxy for E025, we will use Mesenchymal Stem Cell Derived Adipocyte Cultured Cells - E023.
+
+#### Prepare data
+Replace with appropriate paths to E023 replicates.
+
+```{r}
+# read in files
+rep1 = import.bed('BI.Mesenchymal_Stem_Cell_Derived_Adipocyte_Cultured_Cells.H3K9ac.92.filt.tagAlign.gz')
+rep2 = import.bed('BI.Mesenchymal_Stem_Cell_Derived_Adipocyte_Cultured_Cells.H3K9ac.93.filt.tagAlign.gz')
+```
+
+```{r}
+# prepare data
+prepareChIPseq = function(reads){
+    frag.len = median( estimate.mean.fraglen(reads) )
+    cat( paste0( 'Median fragment size for this library is ', round(frag.len)))
+    reads.extended = resize(reads, width = frag.len)
+    return( trim(reads.extended) )
+}
+
+library(BSgenome.Hsapiens.UCSC.hg19)
+genome = BSgenome.Hsapiens.UCSC.hg19
+si = seqinfo(genome)
+si = si[ paste0('chr', c(1:22, 'X', 'Y'))]
+
+rep1 = prepareChIPseq( rep1 )
+rep2 = prepareChIPseq( rep2 )
+```
+
+```{r}
+# create bins and bin data
+binsize = 25
+bins = tileGenome(si['chr21'], tilewidth=binsize,
+                  cut.last.tile.in.chrom=TRUE)
+bins
+
+BinChIPseq = function( reads, bins ){
+       mcols(bins)$score = countOverlaps( bins, reads, ignore.strand = TRUE ) 
+       return( bins ) 
+}
+
+rep1.25bins = BinChIPseq( rep1, bins )
+rep2.25bins = BinChIPseq( rep2, bins )
+
+df <- data.frame(rep1.25bins$score, rep2.25bins$score)
+write.csv(df, 'E023_binwise_counts_chr21.csv', col.names = c('rep1', 'rep2'), sep = ',', row.names = FALSE)
+
+rep1.25bins
+```
+
+#### Using DESeq2 to estimate dispersion
+```{r}
+library(DESeq2)
+
+des_counts <- as.matrix(df)
+col_data <- matrix(c("rep", "rep"), dimnames = list(colnames(df), 'type'))
+
+dds <- DESeqDataSetFromMatrix(
+  countData = des_counts, 
+  colData   = col_data, 
+  design    = ~1
+  )
+
+dds
+```
+
+##### Count Normalize each of the replicates
+We need to normalize the read counts. I've chosen a normalization size of 1,500,000 reads.
+Note: This is lower than both library sizes. I chose this small(ish) number to be conservative, and not over-estimate counts
+```{r}
+target_lib_size <- 1500000
+
+rep1.25bins.normfactor <- target_lib_size / sum(rep1.25bins$score)
+rep2.25bins.normfactor <- target_lib_size / sum(rep2.25bins$score)
+
+print(paste0("Rep1 norm factor: ", rep1.25bins.normfactor))
+print(paste0("Rep2 norm factor: ", rep2.25bins.normfactor))
+
+sizeFactors(dds) <- c(rep1.25bins.normfactor, rep2.25bins.normfactor)
+
+sizeFactors(dds)
+```
+
+##### Estimate Dispersion
+
+```{r}
+dds <- DESeq2::estimateDispersions(dds, fitType = "glmGamPoi")
+```
+
+##### Calculate dispersion for predicted means
+Replace the filepath with the path to the predictions for E025.
+
+```{r}
+pred_means <- read.csv("E025_ch21_h4e256fulltrain_imputed_avg_lambdas.csv")
+
+pred_means$lambdas <- pred_means$lambdas * (target_lib_size / sum(pred_means$lambdas))
+pred_dispersion <- dds@dispersionFunction(pred_means$lambdas)
+
+# write to file
+write(pred_dispersion, 'E025_pred_dispersion.csv', ncolumns = 1)
+```
+
+### E052: Muscle_Satellite_Cultured_Cells
+Skeletal muscle will be used as a proxy for E052. I will use a combination of E107 and E108 (male/female). Now we repeat the same steps as for E025 with different data.
+
+#### Prepare data
+```{r}
+rep1 = import.bed('BI.Skeletal_Muscle.H3K9ac.62.filt.tagAlign.gz')
+rep2 = import.bed('BI.Skeletal_Muscle.H3K9ac.63.filt.tagAlign.gz')
+```
+
+```{r}
+rep1 = prepareChIPseq( rep1 )
+rep2 = prepareChIPseq( rep2 )
+```
+
+```{r}
+rep1.25bins = BinChIPseq( rep1, bins )
+rep2.25bins = BinChIPseq( rep2, bins )
+
+df <- data.frame(rep1.25bins$score, rep2.25bins$score)
+# write.csv(df, 'E107-E108_binwise_counts_chr21.csv', sep = ',', row.names = FALSE)
+```
+
+#### Using DESeq2 to estimate dispersion
+```{r}
+des_counts <- as.matrix(df)
+col_data <- matrix(c("rep", "rep"), dimnames = list(colnames(df), 'type'))
+
+dds <- DESeqDataSetFromMatrix(
+  countData = des_counts, 
+  colData   = col_data, 
+  design    = ~1
+  )
+
+dds
+```
+
+##### Count Normalize each of the replicates
+
+```{r}
+target_lib_size <- 1500000
+
+rep1.25bins.normfactor <- target_lib_size / sum(rep1.25bins$score)
+rep2.25bins.normfactor <- target_lib_size / sum(rep2.25bins$score)
+
+print(paste0("Rep1 norm factor: ", rep1.25bins.normfactor))
+print(paste0("Rep2 norm factor: ", rep2.25bins.normfactor))
+
+sizeFactors(dds) <- c(rep1.25bins.normfactor, rep2.25bins.normfactor)
+
+sizeFactors(dds)
+```
+
+##### Estimate Dispersion
+
+```{r}
+dds <- DESeq2::estimateDispersions(dds, fitType = "glmGamPoi")
+```
+
+##### Calculate dispersion for predicted means
+```{r}
+pred_means <- read.csv("E052_ch21_h4e256fulltrain_imputed_avg_lambdas.csv")
+
+pred_means$lambdas <- pred_means$lambdas * (target_lib_size / sum(pred_means$lambdas))
+pred_dispersion <- dds@dispersionFunction(pred_means$lambdas)
+
+# write to file
+write(pred_dispersion, 'E052_pred_dispersion.csv', ncolumns = 1)
+```
+
+## Simulate replicates for imputations
+Now that we have the mean and dispersion, we can simulate replicates from the imputations. This is done in python because it is somehow faster. You could also do it in R directly by using the built-in function `rnbinom`.
+
+```{python}
+from rpy2 import robjects
+import numpy as np
+import pandas as pd
+from rpy2.robjects import numpy2ri
+from tqdm.notebook import tqdm
+
+def sim_replicates(lambda_file, dispersion_file, num_replicates, output_file):
+  lambdas = pd.read_csv(lambda_file)['lambdas'].values.flatten()
+  lambdas = np.maximum(lambdas, 1)
+  dispersions = pd.read_csv(dispersion_file, header=None).values.flatten()
+  replicates = []
+  
+  rnbinom = robjects.r['rnbinom']
+  numpy2ri.activate()
+  for i in tqdm(range(len(lambdas))):
+    all_vals = rnbinom(n=n_replicates, size=(1/dispersions[i]), mu=lambdas[i])
+    replicates.append(np.asarray(all_vals).astype(int))
+  numpy2ri.deactivate()
+
+  replicates = np.vstack(replicates)
+  replicates_df = pd.DataFrame(data=replicates, index=range(replicates.shape[0]), columns=[f'E025_rep_{i}' for i in range(num_replicates)])
+  replicates_df.to_csv(output_file, index=False)
+  
+sim_replicates(
+  'E025_ch21_h4e256fulltrain_imputed_avg_lambdas.csv',
+  'E025_chr21_pred_dispersion.csv'
+  4, 'E025_sim_replicates.csv'
+  )
+
+sim_replicates(
+  'E052_ch21_h4e256fulltrain_imputed_avg_lambdas.csv',
+  'E052_chr21_pred_dispersion.csv'
+  3, 'E052_sim_replicates.csv'
+  )
+```
+
+## Derive Consensus Peakset
+
+### Peakset for Measurement
+Download the `.narrowPeak` files for each measurement sample from [here](https://egg2.wustl.edu/roadmap/data/byFileType/peaks/unconsolidated/narrowPeak/).
+
+### Peakset for Simulated Replicates (Imputations)
+For replicates simulated from imputations, we use the `callpeak` command from MACS2 to get the peak regions.
+
+For the differential peak analysis later, we need to derive the consensus peakset first. We will use all the peakset files (`.narrowPeak` from MACS2) from all samples and conditions for this.
+
+```{r}
+library(DiffBind)
+library(GenomicRanges)
+library(rtracklayer)
+library(gplots)
+library(bio3d)
+library("ggVennDiagram")
+```
+
+We specify the hg19 gap regions in the graylist. This means that regions in the graylist will not be included in the consensus peakset.
+
+Take care to edit the `sample.sheet.consensus_peakset.csv` to include the correct paths to the `.narrowPeak` files. Additionally, download the `hg19gap.bdg` file if you would like to exclude them from the analysis.
+
+```{r}
+# read in hg19 gap regions to use as graylist
+hg19.gaps <- read.table("hg19gap.bdg", header = FALSE)
+hg19.gaps <- GRanges(seqnames = hg19.gaps$V1, ranges = IRanges(
+    start = hg19.gaps$V2,
+    end = hg19.gaps$V3
+  ))
+
+roadmap <- dba(sampleSheet = "sample.sheet.consensus_peakset.csv")
+roadmap <- dba.blacklist(roadmap, blacklist=DBA_BLACKLIST_HG19, greylist=hg19.gaps)
+dba.plotHeatmap(roadmap, colScheme = "Greens", margin=8)
+```
+
+Let's construct a `GRanges` object for the consensus peakset.
+```{r}
+# write consensus peakset to file
+consensus.peakset <- GRanges(seqnames = rep("chr21", length(rownames(roadmap[['binding']]))), 
+                             ranges = IRanges(
+                               start = roadmap[["binding"]][,2],
+                               end = roadmap[["binding"]][,3]
+                             )
+                             )
+consensus.peakset
+```
+
+## Counts in consensus peakset for each sample
+The next step is to count reads contained in the consensus peakset.
+
+### Measurement Data
+We will use the `tagalign` files from actual experiments
+
+#### E025
+```{r}
+# e025
+rep1 <- import.bed("BI.Adipose_Derived_Mesenchymal_Stem_Cell_Cultured_Cells.H3K9ac.1.2.filt.tagAlign")
+rep2 <- import.bed("BI.Adipose_Derived_Mesenchymal_Stem_Cell_Cultured_Cells.H3K9ac.1.3.filt.tagAlign")
+rep3 <- import.bed("BI.Adipose_Derived_Mesenchymal_Stem_Cell_Cultured_Cells.H3K9ac.92.filt.tagAlign")
+rep4 <- import.bed("BI.Adipose_Derived_Mesenchymal_Stem_Cell_Cultured_Cells.H3K9ac.93.filt.tagAlign")
+
+mcols(consensus.peakset)$e025.m.rep1 = countOverlaps(consensus.peakset, rep1)
+mcols(consensus.peakset)$e025.m.rep2 = countOverlaps(consensus.peakset, rep2)
+mcols(consensus.peakset)$e025.m.rep3 = countOverlaps(consensus.peakset, rep3)
+mcols(consensus.peakset)$e025.m.rep4 = countOverlaps(consensus.peakset, rep4)
+
+head(consensus.peakset)
+```
+
+#### E052
+```{r}
+#e052
+rep1 <- import.bed("bed/BI.Muscle_Satellite_Cultured_Cells.H3K9ac.hSKM-1.filt.tagAlign")
+rep2 <- import.bed("bed/BI.Muscle_Satellite_Cultured_Cells.H3K9ac.hSKM-2.filt.tagAlign")
+rep3 <- import.bed("bed/BI.Muscle_Satellite_Cultured_Cells.H3K9ac.hSKM-3.filt.tagAlign")
+
+mcols(consensus.peakset)$e052.m.rep1 = countOverlaps(consensus.peakset, rep1)
+mcols(consensus.peakset)$e052.m.rep2 = countOverlaps(consensus.peakset, rep2)
+mcols(consensus.peakset)$e052.m.rep3 = countOverlaps(consensus.peakset, rep3)
+
+head(consensus.peakset)
+```
+
+### Simulated Data
+For simulated data, we need to compute reads in consensus peakset. Simulated data is different from measurement because it is already binned into genomic bins. I will compute counts for simulated data in python. 
+
+First, let me save the consensus peakset to file.
+
+```{r}
+# save consensus peakset
+write.csv(data.frame(consensus.peakset), "e025-e052_consensus_peakset.csv")
+```
+
+Accumulate counts for simulated data in python. Save results to the same file.
+```{python}
+import pandas as pd
+from tqdm import tqdm
+
+def accumulate_counts(start, end, rep_df, col):
+    return rep_df[(rep_df.start >= start) & (rep_df.end <= end)][col].sum()
+  
+consensus = pd.read_csv('e025-e052_consensus_peakset.csv', index_col=0)
+
+# E052
+e052_rep = pd.read_csv('data/E052_20_sim_replicates.csv')
+e052_rep['start'] = [25*i for i in range(len(e052_rep))]
+e052_rep['end'] = [25*(i+1) for i in range(len(e052_rep))]
+
+consensus['e052.s.rep1'] = consensus.apply(lambda row: accumulate_counts(row.start, row.end, e052_rep, 'E052_sim_rep_0'), axis=1)
+consensus['e052.s.rep2'] = consensus.apply(lambda row: accumulate_counts(row.start, row.end, e052_rep, 'E052_sim_rep_1'), axis=1)
+consensus['e052.s.rep3'] = consensus.apply(lambda row: accumulate_counts(row.start, row.end, e052_rep, 'E052_sim_rep_2'), axis=1)
+
+# E025
+e025_rep = pd.read_csv('E025_4_sim_replicates_sepInput.csv')
+e025_rep['start'] = [25*i for i in range(len(e025_rep))]
+e025_rep['end'] = [25*(i+1) for i in range(len(e025_rep))]
+
+consensus['e025.s.rep1'] = consensus.apply(lambda row: accumulate_counts(row.start, row.end, e025_rep, 'E025_rep_0'), axis=1)
+consensus['e025.s.rep2'] = consensus.apply(lambda row: accumulate_counts(row.start, row.end, e025_rep, 'E025_rep_1'), axis=1)
+consensus['e025.s.rep3'] = consensus.apply(lambda row: accumulate_counts(row.start, row.end, e025_rep, 'E025_rep_3'), axis=1)
+consensus['e025.s.rep4'] = consensus.apply(lambda row: accumulate_counts(row.start, row.end, e025_rep, 'E025_rep_4'), axis=1)
+
+consensus.to_csv('counts_consensus_peakset.csv')
+```
+
+## Prepare object for differential analysis
+Now we can construct a `DiffBind` objectly by specifying the consensus peakset and the corresponding counts in each sample. More information on how this is done is answered in [this question](https://support.bioconductor.org/p/119168/).
+
+```{r}
+# read in counts in consensus peakset for simulated peakset
+counts.consensus.peaks <- read.csv("counts_consensus_peakset.csv")
+head(counts.consensus.peaks)
+```
+
+Now we construct the `DiffBind` object by mapping counts to the sample ID, tissue and condition.
+```{r}
+# E025 measurement
+roadmap <- dba.peakset(NULL, counts = counts.consensus.peaks$e025.m.rep1, sampID = "E025.m.rep1", tissue = "E025", condition = "measurement", replicate = 1)
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e025.m.rep2, sampID = "E025.m.rep2", tissue = "E025", condition = "measurement", replicate = 2)
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e025.m.rep3, sampID = "E025.m.rep3", tissue = "E025", condition = "measurement", replicate = 3)
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e025.m.rep4, sampID = "E025.m.rep4", tissue = "E025", condition = "measurement", replicate = 4)
+
+# E052 measurement
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e052.m.rep1, sampID = "E052.m.rep1", tissue = "E052", condition = "measurement", replicate = 1)
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e052.m.rep2, sampID = "E052.m.rep2", tissue = "E052", condition = "measurement", replicate = 2)
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e052.m.rep3, sampID = "E052.m.rep3", tissue = "E052", condition = "measurement", replicate = 3)
+
+# E025 simulation
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e025.s.rep1, sampID = "E025.s.rep1", tissue = "E025", condition = "simulation", replicate = 1)
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e025.s.rep2, sampID = "E025.s.rep2", tissue = "E025", condition = "simulation", replicate = 2)
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e025.s.rep3, sampID = "E025.s.rep3", tissue = "E025", condition = "simulation", replicate = 3)
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e025.s.rep4, sampID = "E025.s.rep4", tissue = "E025", condition = "simulation", replicate = 4)
+
+# E052 simulation
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e052.s.rep1, sampID = "E052.s.rep1", tissue = "E052", condition = "simulation", replicate = 1)
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e052.s.rep2, sampID = "E052.s.rep2", tissue = "E052", condition = "simulation", replicate = 2)
+roadmap <- dba.peakset(roadmap, counts = counts.consensus.peaks$e052.s.rep3, sampID = "E052.s.rep3", tissue = "E052", condition = "simulation", replicate = 3)
+
+class(roadmap$binding) <- "numeric"
+dba.plotHeatmap(roadmap)
+```
+
+# Overlap Analysis (Occupancy Analysis)
+Check overlap of differential peaks in measurements and imputations.
+
+## Measurement only
+Analyse measurement separately
+
+### Consensus peakset for measurement only
+
+```{r}
+measurement <- dba(roadmap, roadmap$masks$measurement)
+measurement <- dba.normalize(measurement)
+
+measurement <- dba.contrast(measurement, design = '~Tissue')
+measurement <- dba.analyze(measurement, method=DBA_DESEQ2, bBlacklist = FALSE)
+dba.show(measurement, bContrasts = TRUE)
+
+measurement$contrasts
+```
+
+### Imputations only
+Analyse imputations separately
+
+```{r}
+imputations <- dba(roadmap, roadmap$masks$simulation)
+imputations <- dba.normalize(imputations)
+
+imputations <- dba.contrast(imputations, design = '~Tissue')
+imputations <- dba.analyze(imputations, method=DBA_DESEQ2, bBlacklist = FALSE)
+dba.show(imputations, bContrasts = TRUE)
+
+imputations$contrasts
+```
+
+## Venn Diagram
+Construct a Venn diagram of overlap of peaks.
+
+```{r}
+class(measurement$binding) <- "numeric"
+measurement$binding[,1] <- rep(1, roadmap$totalMerged)
+
+class(imputations$binding) <- "numeric"
+imputations$binding[,1] <- rep(1, roadmap$totalMerged)
+
+threshold = 0.05
+measurement.rep <- dba.report(measurement, bCalled=TRUE, th=1)
+imputations.rep <- dba.report(imputations, bCalled=TRUE, th=1)
+
+set_1 = names(measurement.rep)[which(measurement.rep$FDR<=0.05)]
+set_2 = names(imputations.rep)[which(imputations.rep$FDR<=0.05)]
+
+ggVennDiagram(list(A=set_1, B=set_2), category.names = c("Differential Peaks in Measurement","Differential Peaks in Imputation"))
+```
+
+# Heatmaps
+Construct heatmap of binding affinity score for all differential peaks.
+
+```{r}
+measurement.significant <- dba.report(measurement, bCalled=TRUE, th=0.05)
+imputations.significant <- dba.report(imputations, bCalled=TRUE, th=0.05)
+
+# export.bed(measurement.significant, 'measurement_de_significant.bed')
+# export.bed(imputations.significant, 'imputations_de_significant.bed')
+```
+
+```{r}
+measurement_df <- as(measurement.significant, "data.frame")
+imputations_df <- as(imputations.significant, "data.frame")
+de_peak_indices <- union(rownames(measurement_df), rownames(imputations_df))
+```
+
+```{r, fig.width=10, fig.height=10}
+heatmap.2(roadmap$binding[de_peak_indices, c("E025.m.rep1", "E025.m.rep2", "E025.m.rep3", "E025.m.rep4", "E025.s.rep1", "E025.s.rep2", "E025.s.rep3", "E025.s.rep4", "E052.m.rep1", "E052.m.rep2", "E052.m.rep3", "E052.s.rep1", "E052.s.rep2", "E052.s.rep3")], 
+          Colv = FALSE, 
+          trace = "none", 
+          density.info = "none", 
+          col = rev(bwr.colors(100)), 
+          scale = 'row', 
+          main = "Binding Affinity Score for DE peaks from Measurement & Imputation",
+          lmat=rbind( c(0, 3), c(2,1), c(0,4) ),
+          lwid=c(1, 4),
+          lhei=c(0.5, 5, 1),
+          margins = c(8, 8),
+          srtCol = 45
+          )
+```
