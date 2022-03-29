@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 import sys
 import numpy as np
 import pandas as pd
@@ -54,12 +55,13 @@ selected_common_tracks = ['E065-H3K27ac',
 
 
 TRAINING_SETUPS = list(itertools.product(individuals, selected_common_tracks))
+entex_assay2id = {"H3K36me3":0, "H3K4me1":1, "H3K4me3":2, "H3K9me3":3, "H3K27ac":4}
+entex_cell2id = {"E065": 0, "E079": 1, "E094":2, "E096":3, "E106": 4, "E113": 5}
+
+
 
 if __name__ == "__main__":
-    support_tracks = None
-
     parser = ArgumentParser()
-
     parser.add_argument("--training_setup", type=int, default=0)
     parser.add_argument("--data_folder", type=str,
                         default="ENTEx/processed_data")
@@ -68,18 +70,17 @@ if __name__ == "__main__":
     parser.add_argument("--n_epochs", default=10, type=int)
     parser.add_argument("--checkpoint_path", type=str)
     parser.add_argument("--model_config", type=str)
-
-
+    parser.add_argument("--transfer_from", type=str, default="ENTEx")
+    parser.add_argument("--blacklist_path", type=str, default="localdata/hg19-blacklist.v2.bed")
     args = parser.parse_args()
 
-
+    # Load the dataset class for the Roadmap dataset to have access to precomputed gap masks
     dataset = load_dataset("PredictdChr21")
     mask = dataset._get_bin_mask(exclude_gaps=True)
 
 
-
-    blacklist = pd.read_csv(
-        "localdata/hg19-blacklist.v2.bed", sep="\t", header=None)
+    # Filter the Blacklisted regions in chromosome 21
+    blacklist = pd.read_csv(args.blacklist_path, sep="\t", header=None)
     blacklist.columns = ["Chromosome", "Start (bp)", "End (bp)", "Description"]
     blacklist = blacklist[blacklist["Chromosome"] == "chr21"]
     blacklist_mask = np.ones_like(mask)
@@ -89,41 +90,51 @@ if __name__ == "__main__":
         blacklist_mask[st_bin:end_bin] = 0
     blacklist_mask_no_gaps = blacklist_mask[mask].astype(bool)
 
-    id2assay = {v: k for k, v in dataset.assay2id.items()}
-    id2cell = {v: k for k, v in dataset.cell2id.items()}
 
     individual_label, target_track = TRAINING_SETUPS[args.training_setup]
-    freezing_config = "mlp_sigEmb"
-
-    print("\n\nTraining Setup: ", individual_label, freezing_config, target_track)
-    print("\n\n")
     individual_idx = individuals.index(individual_label)
+    print("\n\nTraining Setup: ", individual_label, target_track)
 
-    experiment_output_dir = "ENTEx/{}_fz_{}".format(args.exp_name, freezing_config)
-    if os.path.exists(join(experiment_output_dir, "{}_{}_imputed.npy".format(individual_label, target_track))):
+    # Create output directory where predicted tracks will be saved
+    experiment_results_dir = "ENTEx/results_{}".format(args.exp_name)
+    if os.path.exists(join(experiment_results_dir, "{}_{}_imputed.npy".format(individual_label, target_track))):
         print("Track already processed, quitting\n\n")
         sys.exit()
-    if not os.path.exists(experiment_output_dir):
+    if not os.path.exists(experiment_results_dir):
         try:
-            os.makedirs(experiment_output_dir)
+            os.makedirs(experiment_results_dir)
         except FileExistsError:
             pass
 
-
+    # Select the tracks to use as support for training and prediction
     support_tracks = sorted([t for t in selected_common_tracks if t!=target_track])
 
     ntargets = max(1, min(10, int(0.2*len(support_tracks))))
 
-    n_cells = 127  # roadmap default
-    n_assays = 24  # roadmap default
+    # Select configurations changes based on which dataset we transfer from
+    if args.transfer_from =="ENTEx":
+        n_cells = 6  # roadmap default
+        n_assays = 5  # roadmap default
+        cell2id = entex_cell2id
+        assay2id = entex_assay2id
+    elif args.transfer_from=="Roadmap":
+        n_cells = 127  # roadmap default
+        n_assays = 24  # roadmap default
+        cell2id = dataset.cell2id
+        assay2id = dataset.assay2id
+    else:
+        raise ValueError("Invalid dataset for transfer")
+
+    # Modify the configuration to reflect the finetuned model
     model_config = load_saved_config(args.model_config, "gv")
     cfg = Namespace(**model_config)
     cfg.lr = args.learning_rate
-    cfg.experiment_name = individual_label + "_" + args.exp_name + "_fz" + str(freezing_config) + target_track
+    cfg.experiment_name = individual_label + "_" + args.exp_name + "_" + target_track
     cfg.experiment_group = "ENTEx_finetune"
     cfg.epochs = args.n_epochs
     cfg.ntargets = ntargets
 
+    # Instantiate the model
     model = load_model(n_cells, n_assays, cfg)
 
     # SANITY CHECK FOR LOADED MODEL
@@ -136,34 +147,17 @@ if __name__ == "__main__":
     print(model([supports, cell_ids, assay_ids,
                  tcell_ids, tassay_ids]).shape)
 
+    # Load weights from checkpoint
     model.load_weights(args.checkpoint_path)
+
     K.set_value(model.optimizer.learning_rate, args.learning_rate)
     print("Setting learning rate to: ", K.eval(model.optimizer.lr))
 
-    ## FREEZING LAYERS: freezing_config indicates the parts of the model that are trained, the rest are frozen
-    if freezing_config =="mlp":
-        model.assay_embedder.trainable = False
-        model.assay_embedder.signal_embedder.global_embeddings = tf.Variable(model.assay_embedder.signal_embedder.global_embeddings.value(), trainable=False)
-        model.assay_embedder.transformer_0.trainable = False
-        model.cell_embedder.trainable = False
-        model.cell_embedder.signal_embedder.global_embeddings = tf.Variable(model.cell_embedder.signal_embedder.global_embeddings.value(), trainable=False)
-        model.cell_embedder.transformer_0.trainable = False
-    elif freezing_config == "mlp_allEmb":
-        model.assay_embedder.transformer_0.trainable = False
-        model.cell_embedder.transformer_0.trainable = False
-    elif freezing_config == "mlp_sigEmb":
-        model.assay_embedder.signal_embedder.global_embeddings = tf.Variable(model.assay_embedder.signal_embedder.global_embeddings.value(), trainable=False)
-        model.assay_embedder.transformer_0.trainable = False
-        model.cell_embedder.signal_embedder.global_embeddings = tf.Variable(model.cell_embedder.signal_embedder.global_embeddings.value(), trainable=False)
-        model.cell_embedder.transformer_0.trainable = False
-    elif freezing_config == "mlp_transformer":
-        model.assay_embedder.trainable = False
-        model.assay_embedder.signal_embedder.global_embeddings = tf.Variable(model.assay_embedder.signal_embedder.global_embeddings.value(), trainable=False)
-        model.cell_embedder.trainable = False
-        model.cell_embedder.signal_embedder.global_embeddings = tf.Variable(model.cell_embedder.signal_embedder.global_embeddings.value(), trainable=False)
-    else:
-        raise ValueError("Invalid freezing configuration")
-
+    ## Freeze layers
+    model.assay_embedder.signal_embedder.global_embeddings = tf.Variable(model.assay_embedder.signal_embedder.global_embeddings.value(), trainable=False)
+    model.assay_embedder.transformer_0.trainable = False
+    model.cell_embedder.signal_embedder.global_embeddings = tf.Variable(model.cell_embedder.signal_embedder.global_embeddings.value(), trainable=False)
+    model.cell_embedder.transformer_0.trainable = False
 
 
     # Reading the individual's data
@@ -174,14 +168,15 @@ if __name__ == "__main__":
 
         support_assays = [t.split("-")[1] for t in support_tracks]
         support_cells = [t.split("-")[0] for t in support_tracks]
-        support_assay_ids = [dataset.assay2id[a] for a in support_assays]
-        support_cell_ids = [dataset.cell2id[c] for c in support_cells]
+        support_assay_ids = [assay2id[a] for a in support_assays]
+        support_cell_ids = [cell2id[c] for c in support_cells]
         test_idxs = [i for i, t in enumerate(tracks) if t==target_track]
         data = f["tracks"][:, mask]
         test_data = data[test_idxs, :].T
         data = data[idxs, :].T
         print("Loaded tracks\n")
 
+    # Select where the finetuned model and its configuration are saved
     output_dir = get_output_dir(cfg.experiment_name, cfg.experiment_group,
                                 resume=False)
 
@@ -208,8 +203,8 @@ if __name__ == "__main__":
     # Predict the target track
     test_assays = [target_track.split("-")[1]]
     test_cells = [target_track.split("-")[0]]
-    test_assay_ids = [dataset.assay2id[a] for a in test_assays]
-    test_cell_ids = [dataset.cell2id[c] for c in test_cells]
+    test_assay_ids = [assay2id[a] for a in test_assays]
+    test_cell_ids = [cell2id[c] for c in test_cells]
 
     print("Initializing test generator...")
     test_generator = ValInMemGenerator(
@@ -224,8 +219,8 @@ if __name__ == "__main__":
         predictions = model(batch, training=False).numpy().flatten()
         predicted_track[index:index+batch_len] = predictions
         index += batch_len
-    if not os.path.exists(experiment_output_dir):
-        os.makedirs(experiment_output_dir)
-    np.save(join(experiment_output_dir, "{}_{}_imputed.npy".format(individual_label, target_track)), predicted_track)
+    if not os.path.exists(experiment_results_dir):
+        os.makedirs(experiment_results_dir)
+    np.save(join(experiment_results_dir, "{}_{}_imputed.npy".format(individual_label, target_track)), predicted_track)
 
     print("\nPrediction Complete!")
