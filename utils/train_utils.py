@@ -4,7 +4,7 @@ import json
 import yaml
 import tensorflow as tf
 from tensorflow.keras.callbacks import CSVLogger, ModelCheckpoint, TensorBoard
-from data_loaders.datasets import read_splits_json
+from data_loaders.metadata import read_splits_json
 from utils.callbacks import Checkpoint, RunningMetricPrinter, EpochTimer, AssayAverager
 from utils.CONSTANTS import OUTPUT_DIR
 

@@ -33,7 +33,6 @@ def parse_args():
     parser.add_argument('--seed', default=211, type=int)
 
     parser.add_argument('--epochs', type=int, default=1)
-    parser.add_argument('--loss', type=str, default="mse")
     parser.add_argument('--transformation', type=str, choices=["arcsinh"], default=None)
     
     parser.add_argument('--n_attn_heads', type=int, default=4)

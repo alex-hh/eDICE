@@ -130,7 +130,6 @@ class BaseModel(tf.keras.Model):
             support_splits=support_splits, target_split=val_split,
             transform=self.transformation, exclude_gaps=exclude_gaps,
             exclude_blacklist=exclude_blacklist, fixed_inputs=self.fixed_inputs,
-            inmem=True
         )
         return self.evaluate(val_generator, callbacks=callbacks, **eval_kwargs)
 
@@ -148,7 +147,6 @@ class BaseModel(tf.keras.Model):
             support_splits=support_splits, target_split=val_split,
             transform=self.transformation, exclude_gaps=exclude_gaps,
             exclude_blacklist=exclude_blacklist, fixed_inputs=self.fixed_inputs,
-            inmem=True
         )
         target_tracks = dataset.splits[val_split]
         preds = self.predict(val_generator, callbacks=callbacks, **eval_kwargs)
