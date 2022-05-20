@@ -3,7 +3,7 @@ import tensorflow as tf
 from models.base import BaseModel
 from models.embedders import CrossContextualSignalEmbedder as CrossSignalEmbedder
 from models.layers import InputExpander, NodeAverager, FlatInputMasker,\
-                          TargetEmbeddingRetriever, AssayScales, output_mlp
+                          TargetEmbeddingRetriever, output_mlp
 
 
 class AssayAverager(BaseModel):

@@ -15,8 +15,7 @@ import numpy as np
 from models import metrics
 from data_loaders.data_generators import TrainInMemGenerator, ValInMemGenerator,\
                                          TestInMemGenerator, FixedInputTrainGenerator,\
-                                         FixedInputValGenerator, FixedInputTestGenerator,\
-                                         LeaveOneOutGenerator
+                                         FixedInputValGenerator, FixedInputTestGenerator
 from data_loaders import hdf5_utils
 from data_loaders.annotations import IntervalAnnotation
 
@@ -189,7 +188,7 @@ class HDF5Dataset:
         (supports, cell_ids, assay_ids,
          targets, target_cell_ids, target_assay_ids) = self.prepare_data(
             support_tracks, target_tracks, exclude_gaps=exclude_gaps,
-            exclude_blacklist=exclude_blacklist, return_track_ids=not inmem)
+            exclude_blacklist=exclude_blacklist, return_track_ids=False)
         print("loading all support / target tracks into memory")
         val_class = FixedInputValGenerator if fixed_inputs else ValInMemGenerator
         return val_class(supports, cell_ids, assay_ids,

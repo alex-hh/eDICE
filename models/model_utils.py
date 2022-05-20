@@ -32,7 +32,7 @@ def get_factoriser_model(config, n_cells, n_assays):
                         single_head=getattr(config, "single_head", False),
                         single_head_residual=getattr(config, "single_head_residual", True),
                         layer_norm_type=config.layer_norm_type)
-    assert getattr(config, "cellagg", None) is None and config.n_attn_layers > 0:
+    assert getattr(config, "cellagg", None) is None and config.n_attn_layers > 0
     model_class = "CellAssayCrossFactoriser"
     print("Loading model class", model_class)
     model = getattr(predictors, model_class)(**model_config)
@@ -65,7 +65,7 @@ def load_model(n_cells, n_assays, config, compile_model=True):
             model = get_factoriser_model(config, n_cells, n_assays)
             
         if compile_model:
-            model.compile(loss=config.loss if config.output_dist is None else None,
+            model.compile(loss="mse",
                           optimizer=Adam(learning_rate=config.lr),
                           run_eagerly=config.test_run)
         return model
