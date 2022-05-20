@@ -63,6 +63,8 @@ entex_cell2id = {"E065": 0, "E079": 1, "E094":2, "E096":3, "E106": 4, "E113": 5}
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--training_setup", type=int, default=0)
+    parser.add_argument("--individual", type=str, default="male_37")
+    parser.add_argument("--target_track", type=str, default='E065-H3K4me1')
     parser.add_argument("--data_folder", type=str,
                         default="ENTEx/processed_data")
     parser.add_argument("--learning_rate", type=float, default=0.00001)
@@ -113,8 +115,8 @@ if __name__ == "__main__":
 
     # Select configurations changes based on which dataset we transfer from
     if args.transfer_from =="ENTEx":
-        n_cells = 6  # roadmap default
-        n_assays = 5  # roadmap default
+        n_cells = 6  # ENTEx selection
+        n_assays = 5  # ENTEx selection
         cell2id = entex_cell2id
         assay2id = entex_assay2id
     elif args.transfer_from=="Roadmap":
@@ -126,7 +128,7 @@ if __name__ == "__main__":
         raise ValueError("Invalid dataset for transfer")
 
     # Modify the configuration to reflect the finetuned model
-    model_config = load_saved_config(args.model_config, "gv")
+    model_config = load_saved_config(args.model_config)
     cfg = Namespace(**model_config)
     cfg.lr = args.learning_rate
     cfg.experiment_name = individual_label + "_" + args.exp_name + "_" + target_track
