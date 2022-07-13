@@ -1,0 +1,7 @@
+data/
+localdata/
+job.sh
+job.sub
+outputs/
+__pycache__/
+.ipynb_checkpoints/
