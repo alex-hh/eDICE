@@ -5,7 +5,7 @@ import yaml
 import tensorflow as tf
 from tensorflow.keras.callbacks import CSVLogger, ModelCheckpoint, TensorBoard
 from data_loaders.metadata import read_splits_json
-from utils.callbacks import Checkpoint, RunningMetricPrinter, EpochTimer, AssayAverager
+from utils.callbacks import RunningMetricPrinter, EpochTimer, AssayAverager
 from utils.CONSTANTS import OUTPUT_DIR
 
 
@@ -30,7 +30,6 @@ class ConfigSaver(tf.keras.callbacks.Callback):
 
 
 def get_callbacks(args, dataset, checkpoint=None):
-
     output_dir = get_output_dir(args.experiment_name, args.experiment_group,
                                 resume=args.resume)
     splits = read_splits_json(args.split_file)
@@ -50,14 +49,14 @@ def get_callbacks(args, dataset, checkpoint=None):
         callbacks += [
             CSVLogger(output_dir / "train_log.csv", append=args.resume),
             # https://www.tensorflow.org/guide/keras/save_and_serialize
-            Checkpoint(output_dir / "checkpoints/{epoch:02d}-{loss:.4f}",
-                       save_best_only=not args.checkpoint,
-                       monitor="loss",
-                       n_checkpoints_max=7 if args.checkpoint else 1,
-                       # defaults true anyway for subclassed models
-                       # https://github.com/tensorflow/tensorflow/blob/b36436b087bd8e8701ef51718179037cccdfc26e/tensorflow/python/keras/callbacks.py#L1219
-                       # model._is_graph_network tests whether model is functional
-                       save_weights_only=True),
+            ModelCheckpoint(
+                output_dir / "checkpoints/edice",
+                save_best_only=True,
+                monitor="val_loss",
+                # defaults true anyway for subclassed models
+                # https://github.com/tensorflow/tensorflow/blob/b36436b087bd8e8701ef51718179037cccdfc26e/tensorflow/python/keras/callbacks.py#L1219
+                # model._is_graph_network tests whether model is functional
+                save_weights_only=True),
             ]
         if not args.resume:
             callbacks.append(ConfigSaver(
@@ -125,7 +124,7 @@ def get_output_dir(experiment_name, experiment_group=None,
 def find_latest_checkpoint_in_dir(checkpoints_dir):
     latest_checkpoint = tf.train.latest_checkpoint(checkpoints_dir)
     if latest_checkpoint is None:
-        print("No checkpoints found, starting from scratch")
+        print(f"No checkpoints found in dir {checkpoints_dir}, starting from scratch")
         start_epoch = 0
     else:
         print("Resuming from checkpoint", latest_checkpoint)

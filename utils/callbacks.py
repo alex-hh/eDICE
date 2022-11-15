@@ -8,44 +8,6 @@ from time import time
 import tensorflow as tf
 
 
-class Checkpoint(tf.keras.callbacks.ModelCheckpoint):
-
-    def __init__(self, filepath, n_checkpoints_max=5, **kwargs):
-        self.n_checkpoints_max = n_checkpoints_max
-        super().__init__(filepath, **kwargs)
-
-    def _save_model(self, epoch, logs):
-        self.cleanup()
-        super()._save_model(epoch, logs)
-
-    def cleanup(self):
-        """
-        based on ModelCheckpoint._get_most_recently_modified_file_matching_pattern
-        """
-        print("filepath", self.filepath)
-        dir_name = os.path.dirname(self.filepath)
-        base_name = os.path.basename(self.filepath)
-        base_name_regex = '^' + re.sub(r'{.*}', r'.*', base_name) + '$'
-        chckpoints = []
-        filepaths = defaultdict(list)
-        if os.path.isdir(dir_name):
-            for file_name in os.listdir(dir_name):
-                # Only consider if `file_name` matches the pattern.
-                if re.match(base_name_regex, file_name):
-                    file_path = os.path.join(dir_name, file_name)
-                    chckpoints.append(os.path.basename(file_path))
-                    filepaths[os.path.basename(file_path)].append(file_path)
-        
-        chckpoints = list(set(chckpoints))
-        print("Matched chckpoints", chckpoints)
-        chckpoints = sorted(chckpoints, key=lambda f: os.path.getmtime(filepaths[f][-1]),
-                            reverse=True)
-        chckpoints_to_remove = chckpoints[self.n_checkpoints_max-1:]  # a checkpoint is about to be added
-        for chckpoint in chckpoints_to_remove:
-            for f in filepaths[chckpoint]:
-                os.remove(f)
-
-
 class EpochTimer(tf.keras.callbacks.Callback):
   # just make sure to include before csvlogger
 

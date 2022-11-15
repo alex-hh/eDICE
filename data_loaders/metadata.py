@@ -14,6 +14,7 @@ def load_saved_idmap(idmap):
     # CHECK COMPATIBILITY WITH CELLS AND ASSAYS
     return cell2id, assay2id
 
+
 def build_new_idmap(cells, assays):
     cell2id = {c: i for i, c in enumerate(cells)}
     assay2id = {a: i for i, a in enumerate(assays)}

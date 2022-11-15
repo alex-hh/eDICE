@@ -134,15 +134,15 @@ class BaseModel(tf.keras.Model):
         return self.evaluate(val_generator, callbacks=callbacks, **eval_kwargs)
 
     def dataset_predict(self,
-                         dataset,
-                         support_splits=None,
-                         val_split="val",
-                         callbacks=None,
-                         exclude_gaps=False,
-                         exclude_blacklist=False,
-                         save_preds=False,
-                         outfile=None,
-                         **eval_kwargs):
+                        dataset,
+                        support_splits=None,
+                        val_split="val",
+                        callbacks=None,
+                        exclude_gaps=False,
+                        exclude_blacklist=False,
+                        save_preds=False,
+                        outfile=None,
+                        **eval_kwargs):
         val_generator = dataset.get_val_generator(
             support_splits=support_splits, target_split=val_split,
             transform=self.transformation, exclude_gaps=exclude_gaps,
