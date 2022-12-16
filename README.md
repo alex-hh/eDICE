@@ -7,9 +7,9 @@ This repository contains the code for the model presented in the paper [Getting 
 
 # Overview
 
+The _edice_ folder contains the source code used to perform the experiments presented in the paper.
+
 The _scripts_ folder contains the code to train eDICE on the Roadmap dataset as well as the code used to apply transfer learning for individualized predictions on the ENTEx dataset.
-
-
 
 
 
@@ -17,11 +17,19 @@ The _scripts_ folder contains the code to train eDICE on the Roadmap dataset as 
 
 ## Hardware requirements 
 
+eDICE requires only a standard computer with enough RAM to support the in-memory operations. However, the use of a GPU accelerator is recommended for the analysis of larger datasets.
+
+
 ## Software requirements
 
+eDICE was developed using python 3.9. We recommend setting up a suitable environment using [Anaconda](https://www.anaconda.com/). 
+The environment can be created as follows
 
+     conda create -n edice python==3.9
+     conda activate edice
+     python setup.py install
 
-## Python dependencies
+This operation will install all the package dependencies for eDICE. Alternatively, the requirements.txt file lists the dependencies used to perform the experiments presented in the paper.
 
 
 
@@ -30,16 +38,14 @@ The _scripts_ folder contains the code to train eDICE on the Roadmap dataset as 
 
 Sample data for a minimal run of the training script is provided in the folder edice/data/roadmap.
 
-Setup the edice package using 
-
-     python setup.py install
+Ensure that a suitable environment is setup and active (see Software requirements).
  
 To run the sample training script, the command is:
 
      python scripts/train_roadmap.py --experiment_name "myExperiment" --train_splits "train" --epochs 20 --transformation "arcsinh" --embed_dim 256 --lr 0.0003 --n_targets 120
 
 
-Full data and trained models to run the transfer learning scripts are available on request
+Full data and trained models to run the Roadmap training and ENTEx transfer learning scripts are available on request.
 
 
 # License
