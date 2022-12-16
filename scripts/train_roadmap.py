@@ -2,9 +2,9 @@ import tensorflow as tf
 import argparse, os
 import numpy as np
 
-from data_loaders.dataset_config import load_dataset
-from models.model_utils import load_model
-from utils.train_utils import get_callbacks, find_checkpoint
+from edice.data_loaders.dataset_config import load_dataset
+from edice.models.model_utils import load_model
+from edice.utils.train_utils import get_callbacks, find_checkpoint
 
 
 # hardcoded defaults, that are not configurable via command line
@@ -18,10 +18,10 @@ ROADMAP_DEFAULTS = dict(layer_norm_type=None,
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('experiment_name', type=str)
+    parser.add_argument('--experiment_name', type=str)
     parser.add_argument('--dataset', default='RoadmapSample', choices=['RoadmapRnd', 'RoadmapChr21', 'RoadmapChr1', 'RoadmapChr4', 'RoadmapSample'])
-    parser.add_argument('--experiment_group', type=str, default=None)  # maybe we let model serialise itself?
-    parser.add_argument('--split_file', type=str, default="data/roadmap/predictd_splits.json")
+    parser.add_argument('--experiment_group', type=str, default=None)  
+    parser.add_argument('--split_file', type=str, default="edice/data/roadmap/predictd_splits.json")
     # parser.add_argument('--model_type', type=str, default='attentive')
     # parser.add_argument('--model_class', type=str, default="CellAssayCrossFactoriser")
     parser.add_argument('--train_splits', type=str, default=["train"], nargs="+")

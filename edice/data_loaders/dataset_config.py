@@ -1,7 +1,7 @@
 import copy
 
-from data_loaders.hdf5_datasets import HDF5Dataset
-from data_loaders.metadata import *
+from edice.data_loaders.hdf5_datasets import HDF5Dataset
+from edice.data_loaders.metadata import *
 
 
 class RoadmapDataset(HDF5Dataset, RoadmapMetadata):
@@ -13,7 +13,7 @@ dataset_configs = {}
 # A dataset class, filepath, idmap, (split) combination define a dataset
 ROADMAP = {"dataset_class": RoadmapDataset,
            "filepath": "roadmap/roadmap_tracks_shuffled.h5",  # relative to data_dir
-           "idmap": "data/roadmap/idmap.json",
+           "idmap": "edice/data/roadmap/idmap.json",
            "name": "RoadmapRnd"}  # relative to repo base
 dataset_configs['RoadmapRnd'] = ROADMAP
 
@@ -67,6 +67,7 @@ def load_dataset(dataset_name, **kwargs):
     config = dataset_configs[dataset_name].copy()
     dataset = config.pop('dataset_class')
     config.update(kwargs)
+    print(config)
     return dataset(**config)
 
 

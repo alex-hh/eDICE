@@ -15,10 +15,10 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 # import tensorflow.keras.backend as K
 
-from utils.train_utils import get_output_dir, ConfigSaver
-from models.model_utils import load_model
-from data_loaders.data_generators import TissueLOO_TrainInMemGenerator, ValInMemGenerator
-from utils.callbacks import Checkpoint, RunningMetricPrinter
+from edice.utils.train_utils import get_output_dir, ConfigSaver
+from edice.models.model_utils import load_model
+from edice.data_loaders.data_generators import TissueLOO_TrainInMemGenerator, ValInMemGenerator
+from edice.utils.callbacks import Checkpoint, RunningMetricPrinter
 from sklearn.metrics import auc, precision_recall_curve
 
 

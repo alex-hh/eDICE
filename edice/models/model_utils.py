@@ -1,6 +1,6 @@
 from tensorflow.keras.optimizers import Adam
 
-from models import predictors
+from edice.models import predictors
 
 
 def get_challenge_model(config, n_cells, n_assays):

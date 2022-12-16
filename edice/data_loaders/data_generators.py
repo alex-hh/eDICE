@@ -2,8 +2,8 @@ import math
 import tensorflow as tf
 import numpy as np
 
-from data_loaders import hdf5_utils
-from utils.transforms import apply_transformation
+from edice.data_loaders import hdf5_utils
+from edice.utils.transforms import apply_transformation
 
 
 def format_inputs(inputs, return_dict=False):

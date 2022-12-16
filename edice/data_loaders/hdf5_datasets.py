@@ -12,14 +12,14 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-from models import metrics
-from data_loaders.data_generators import TrainInMemGenerator, ValInMemGenerator,\
+from edice.models import metrics
+from edice.data_loaders.data_generators import TrainInMemGenerator, ValInMemGenerator,\
                                          TestInMemGenerator, FixedInputTrainGenerator,\
                                          FixedInputValGenerator, FixedInputTestGenerator
-from data_loaders import hdf5_utils
-from data_loaders.annotations import IntervalAnnotation
+from edice.data_loaders import hdf5_utils
+from edice.data_loaders.annotations import IntervalAnnotation
 
-from utils.CONSTANTS import DATA_DIR
+from edice.utils.CONSTANTS import DATA_DIR
 
 
 class HDF5Dataset:

@@ -2,7 +2,7 @@ import tensorflow as tf
 import collections.abc
 from tensorflow.keras import initializers
 
-from models.attention import ScaledDPSelfAttention, MultiHeadAttention
+from edice.models.attention import ScaledDPSelfAttention, MultiHeadAttention
 
 
 def batched_gather(params, indices, axis=None):

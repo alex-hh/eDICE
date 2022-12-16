@@ -1,5 +1,5 @@
 import tensorflow as tf
-from models.layers import InputExpander, NodeInputMasker, NoLNTransformerBlock, CrossTransformerBlock,\
+from edice.models.layers import InputExpander, NodeInputMasker, NoLNTransformerBlock, CrossTransformerBlock,\
                           NoAttnCrossTransformerBlock, CrossSelfAttentionLayer
 
 

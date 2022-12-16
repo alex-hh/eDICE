@@ -1,7 +1,6 @@
 absl-py==1.3.0
 astunparse==1.6.3
 cachetools==5.2.0
-certifi @ file:///croot/certifi_1665076670883/work/certifi
 charset-normalizer==2.1.1
 flatbuffers==22.12.6
 gast==0.4.0
@@ -48,5 +47,3 @@ urllib3==1.26.13
 Werkzeug==2.2.2
 wrapt==1.14.1
 zipp==3.11.0
-
-pip install tensorflow numpy pandas h5py pyYAML scikit-learn tqdm

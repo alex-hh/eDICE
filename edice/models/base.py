@@ -4,9 +4,9 @@ import os
 import tensorflow as tf
 import numpy as np
 
-from utils import transforms, val_utils
-from data_loaders.data_generators import format_inputs
-from data_loaders import hdf5_utils
+from edice.utils import transforms, val_utils
+from edice.data_loaders.data_generators import format_inputs
+from edice.data_loaders import hdf5_utils
 
 
 class BaseModel(tf.keras.Model):

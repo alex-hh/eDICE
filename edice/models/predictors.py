@@ -1,8 +1,8 @@
 import tensorflow as tf
 
-from models.base import BaseModel
-from models.embedders import CrossContextualSignalEmbedder as CrossSignalEmbedder
-from models.layers import InputExpander, NodeAverager, FlatInputMasker,\
+from edice.models.base import BaseModel
+from edice.models.embedders import CrossContextualSignalEmbedder as CrossSignalEmbedder
+from edice.models.layers import InputExpander, NodeAverager, FlatInputMasker,\
                           TargetEmbeddingRetriever, output_mlp
 
 
