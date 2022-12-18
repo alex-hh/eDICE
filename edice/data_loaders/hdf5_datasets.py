@@ -13,9 +13,7 @@ import h5py
 import numpy as np
 
 from edice.models import metrics
-from edice.data_loaders.data_generators import TrainInMemGenerator, ValInMemGenerator,\
-                                         TestInMemGenerator, FixedInputTrainGenerator,\
-                                         FixedInputValGenerator, FixedInputTestGenerator
+from edice.data_loaders.data_generators import TrainInMemGenerator, ValInMemGenerator, TestInMemGenerator
 from edice.data_loaders import hdf5_utils
 from edice.data_loaders.annotations import IntervalAnnotation
 
@@ -27,11 +25,6 @@ class HDF5Dataset:
     def __init__(self, filepath, idmap=None, tracks=None, 
                  splits=None, total_bins=None, data_dir=None,
                  chromosome=None, name=None):
-        """
-        fixed_inputs: whether to generate a fixed size vector representing all possible tracks,
-            in a fixed order, or to only return those tracks to be used as supports 
-            at a given datapoint (along with cell, assay ids to identify the tracks)
-        """
         data_dir = Path(data_dir or DATA_DIR)
         self.hdf5_file = str(data_dir/filepath)
         self.chromosome = chromosome
@@ -149,7 +142,7 @@ class HDF5Dataset:
                             transform=None, shuffle=True, n_targets=50,
                             min_targets=None, max_targets=None,
                             exclude_gaps=False, exclude_blacklist=False,
-                            fixed_inputs=False, return_dict=False):
+                            return_dict=False):
         if train_tracks is None:
             assert hasattr(self, 'splits') and isinstance(self.splits, dict),\
                 'Splits not passed to dataset constructor'
@@ -162,19 +155,17 @@ class HDF5Dataset:
         supports, cell_ids, assay_ids, _ , _ , _ = self.prepare_data(
             train_tracks, exclude_gaps=exclude_gaps, exclude_blacklist=exclude_blacklist
         )
-        train_class = FixedInputTrainGenerator if fixed_inputs else TrainInMemGenerator
-        return train_class(supports, cell_ids, assay_ids,
-                           transform=transform, batch_size=batch_size,
-                           shuffle=shuffle, n_targets=n_targets,
-                           min_targets=min_targets, max_targets=max_targets,
-                           return_dict=return_dict)
+        return TrainInMemGenerator(supports, cell_ids, assay_ids,
+                                   transform=transform, batch_size=batch_size,
+                                   shuffle=shuffle, n_targets=n_targets,
+                                   min_targets=min_targets, max_targets=max_targets,
+                                   return_dict=return_dict)
 
     def get_supports_targets_generator(self,
                                        support_tracks,
                                        target_tracks,
                                        batch_size=256,
                                        transform=None,
-                                       fixed_inputs=False,
                                        exclude_gaps=False,
                                        exclude_blacklist=False,
                                        return_dict=False,
@@ -190,11 +181,10 @@ class HDF5Dataset:
             support_tracks, target_tracks, exclude_gaps=exclude_gaps,
             exclude_blacklist=exclude_blacklist, return_track_ids=False)
         print("loading all support / target tracks into memory")
-        val_class = FixedInputValGenerator if fixed_inputs else ValInMemGenerator
-        return val_class(supports, cell_ids, assay_ids,
-                         targets, target_cell_ids, target_assay_ids,
-                         batch_size=batch_size, transform=transform,
-                         return_dict=return_dict)
+        return ValInMemGenerator(supports, cell_ids, assay_ids,
+                                 targets, target_cell_ids, target_assay_ids,
+                                 batch_size=batch_size, transform=transform,
+                                 return_dict=return_dict)
         
 
     def get_val_generator(self,

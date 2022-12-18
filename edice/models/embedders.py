@@ -1,6 +1,5 @@
 import tensorflow as tf
-from edice.models.layers import InputExpander, NodeInputMasker, NoLNTransformerBlock, CrossTransformerBlock,\
-                          NoAttnCrossTransformerBlock, CrossSelfAttentionLayer
+from edice.models.layers import InputExpander, NodeInputMasker, NoLNTransformerBlock, CrossTransformerBlock
 
 
 def create_node_mask(node_counts):
@@ -102,27 +101,6 @@ class SignalEmbedder(tf.keras.layers.Layer):
         return embedded, missing_node_mask
 
 
-class GlobalEmbedder(tf.keras.layers.Layer):
-
-    """
-    A fixed embedding layer: unlike keras embeddings, it isn't called with particular ids to lookup,
-    it just returns all of the embeddings every time
-    """
-
-    def __init__(self, n_items, embed_dim=32, **kwargs):
-        self.n_items = n_items
-        self.embed_dim = embed_dim
-
-    def build(self, input_shape):
-        self.embeddings = self.add_weight(
-            shape=(self.n_items, self.embed_dim),
-            initializer=self.embeddings_initializer,
-            name='embeddings')
-
-    def call(self, inputs):
-        return self.global_embeddings  # can just ignore inputs - they're irrelevant
-
-
 class CrossContextualSignalEmbedder(tf.keras.layers.Layer):
 
     """
@@ -141,9 +119,6 @@ class CrossContextualSignalEmbedder(tf.keras.layers.Layer):
                  intermediate_fc_dropout=0.,
                  embedding_dropout=0.,
                  transformer_kwargs=None,
-                 single_head=False,
-                 single_head_residual=True,
-                 layer_norm_type="pre",
                  **kwargs):
         super().__init__(**kwargs)
         transformer_kwargs = transformer_kwargs or {} # add interspersed_fc_dim 128
@@ -152,9 +127,6 @@ class CrossContextualSignalEmbedder(tf.keras.layers.Layer):
                                               dropout=embedding_dropout,
                                               add_global_embedding=add_global_embedding)
         self.n_attn_layers = n_attn_layers
-        self.layer_norm_type = layer_norm_type
-        assert layer_norm_type is None,\
-            "Only layer norm None implemented currently"
 
         self_transformer = NoLNTransformerBlock
         assert n_attn_layers > 0, "Implementation assumes n_attn_layers >= 0"
@@ -167,24 +139,16 @@ class CrossContextualSignalEmbedder(tf.keras.layers.Layer):
                                      ffn_dropout=intermediate_fc_dropout,
                                      **transformer_kwargs))
 
-        if single_head:
-            # assert on layers required because this isnt also applied to self transformer
-            assert n_attn_heads == 1 and n_attn_layers == 1
-            setattr(self, f'transformer_{n_attn_layers-1}',
-                    CrossSelfAttentionLayer(embed_dim,
-                                            residual=single_head_residual))
-        else:
-            if n_attn_heads > 0:
-                cross_transformer = CrossTransformerBlock
-            else:
-                assert n_attn_heads == 0 and n_attn_layers == 1
-                cross_transformer = NoAttnCrossTransformerBlock
+        assert n_attn_heads > 0:
 
-            setattr(self, f'transformer_{n_attn_layers-1}',
-                    cross_transformer(embed_dim, n_attn_heads, intermediate_fc_dim,
-                                      rate=transformer_dropout,
-                                      ffn_dropout=intermediate_fc_dropout,
-                                      **transformer_kwargs))
+        setattr(self, f'transformer_{n_attn_layers-1}',
+                CrossTransformerBlock(
+                    embed_dim, n_attn_heads, intermediate_fc_dim,
+                    rate=transformer_dropout,
+                    ffn_dropout=intermediate_fc_dropout,
+                    **transformer_kwargs
+                )
+            )
 
     def call(self, inputs, training=None):
         obs_vec, node_ids, feat_ids, query_ids = inputs

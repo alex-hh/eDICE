@@ -63,7 +63,7 @@ def get_callbacks(args, dataset, checkpoint=None):
                 args, output_dir / "config.yaml",
                 splits=splits, format="yaml"))
 
-    return callbacks
+    return callbacks, output_dir
 
 
 def save_config(config, filepath, format="yaml"):

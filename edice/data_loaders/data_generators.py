@@ -113,38 +113,6 @@ class TrainInMemGenerator(tf.keras.utils.Sequence):
         return format_inputs(inp, self.return_dict), targets
 
 
-class FixedInputTrainGenerator(TrainInMemGenerator):
-
-    """
-    For challenge model
-    """
-
-    def __getitem__(self, batch_index):
-        batch_start = batch_index*self.batch_size
-        batch_stop = (batch_index+1)*self.batch_size
-        batch_X = self.X[batch_start: batch_stop]
-        batch_size = batch_X.shape[0]
-
-        batch_n_targets = _get_n_batch_targets(self.n_targets,
-                                               self.min_targets,
-                                               self.max_targets)
-        # each (batch_size, n_tracks) same as batch_X
-        mask = np.ones_like(batch_X)
-        targets = np.zeros((batch_size, batch_n_targets))
-        target_cell_ids = np.zeros((batch_size, batch_n_targets))
-        target_assay_ids = np.zeros((batch_size, batch_n_targets))
-
-        # here a batched_gather i.e. tf.gather with batch_dims 1 would help
-        for i in range(batch_size):
-            target_ids = np.random.choice(self.n_tracks, batch_n_targets, replace=False)
-            mask[i, target_ids] = 0
-            targets[i, :] = batch_X[i, target_ids]
-            target_cell_ids[i, :] = self.cellids[target_ids]
-            target_assay_ids[i, :] = self.assayids[target_ids]
-        
-        return [batch_X, mask, target_cell_ids, target_assay_ids], targets
-
-
 class ValInMemGenerator(tf.keras.utils.Sequence):
 
     def __init__(self,
@@ -197,23 +165,6 @@ class ValInMemGenerator(tf.keras.utils.Sequence):
         return self.get_batch_data(batch_start)
 
 
-class FixedInputValGenerator(ValInMemGenerator):
-
-    def __getitem__(self, batch_index):
-        batch_start = batch_index*self.batch_size
-        batch_stop = (batch_index+1)*self.batch_size
-        batch_X = self.X[batch_start: batch_stop]
-        mask = np.ones_like(batch_X)
-        batch_y = self.targets[batch_start: batch_stop]
-        batch_size = batch_X.shape[0]
-
-        batch_target_cellids = np.tile(self.target_cellids,
-                                       (batch_size, 1))
-        batch_target_assayids = np.tile(self.target_assayids,
-                                       (batch_size, 1))
-        return [batch_X, mask, batch_target_cellids, batch_target_assayids], batch_y
-
-
 class TestInMemGenerator(tf.keras.utils.Sequence):
 
     def __init__(self,
@@ -254,29 +205,6 @@ class TestInMemGenerator(tf.keras.utils.Sequence):
                 'target_cell_ids': batch_target_cellids,
                 'target_assay_ids': batch_target_assayids}
         return format_inputs(inps, self.return_dict)
-
-
-class FixedInputTestGenerator(TestInMemGenerator):
-    
-    def __getitem__(self, batch_index):
-        batch_start = batch_index*self.batch_size
-        batch_stop = (batch_index+1)*self.batch_size
-        batch_X = self.X[batch_start: batch_stop]
-        mask = np.ones_like(batch_X)
-        batch_size = batch_X.shape[0]
-
-        # each (batch_size, n_tracks) same as batch_X
-        batch_cellids = np.tile(self.cellids, (batch_size, 1))
-        batch_assayids = np.tile(self.assayids, (batch_size, 1))
-
-        batch_target_cellids = np.tile(self.target_cellids,
-                                       (batch_size, 1))
-        batch_target_assayids = np.tile(self.target_assayids,
-                                       (batch_size, 1))
-        return [batch_X, mask, batch_target_cellids, batch_target_assayids]
-
-
-
 
 
 class TissueLOO_TrainInMemGenerator(tf.keras.utils.Sequence):

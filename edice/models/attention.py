@@ -54,53 +54,6 @@ def scaled_dot_product_attention(q, k, v, mask):
     return output, attention_weights
 
 
-class ScaledDPSelfAttention(tf.keras.layers.Layer):
-
-    def __init__(self, d_model, project_qkv=False):
-        super().__init__()
-        self.project_qkv = project_qkv
-        self.d_model = d_model
-        if self.project_qkv:
-            self.wq = tf.keras.layers.Dense(d_model)
-            self.wk = tf.keras.layers.Dense(d_model)
-            self.wv = tf.keras.layers.Dense(d_model)
-
-    def call(self, v, k, q, mask):
-        """
-        mask is a b, l node mask (see embedders.create_node_mask)
-        `Mask out any nodes (cells/assays) which do not have any observed features (tracks)
-        from the attention calculation: i.e. prevent them from being included in the normalisation.`
-        """
-        batch_size = tf.shape(q)[0]
-        if mask is not None:
-            tf.debugging.assert_rank(mask, 2)
-        # q, k, v typically all b, l, d
-        if self.project_qkv:
-            q = self.wq(q)
-            k = self.wk(k)
-            v = self.wv(v)
-
-        # N.b. that whereas in MHA case mask had to be broadcastable to b,h,l,l
-        # here mask just has to be broadcastable to b,l,l
-        # print("q shape", q.shape, "k shape", k.shape, "v shape", v.shape, "mask shape", mask.shape)
-        scaled_attention, attention_weights = scaled_dot_product_attention(
-            q, k, v, mask[:, tf.newaxis, :])  # (b, L, d), (b, L, L)
-
-        tf.debugging.assert_shapes([
-            (q, ("B", "L", self.d_model)),
-            (scaled_attention, ("B", "L", self.d_model))
-        ])
-
-        # needed to define the shape of scaled_attention for some reason
-        scaled_attention = tf.reshape(scaled_attention, 
-                                      (batch_size, -1, self.d_model))
-        # expected_out_shape = (q.shape[0], q.shape[1], self.d_model)
-        # assert scaled_attention.shape == expected_out_shape,\
-        #     f"{scaled_attention.shape} != {expected_out_shape}"
-
-        return [scaled_attention, attention_weights]
-
-
 class MultiHeadAttention(tf.keras.layers.Layer):
 
     """

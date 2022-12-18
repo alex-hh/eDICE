@@ -1,3 +1,4 @@
+import os
 import tensorflow as tf
 import argparse, os
 import numpy as np
@@ -19,14 +20,15 @@ ROADMAP_DEFAULTS = dict(layer_norm_type=None,
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment_name', type=str)
-    parser.add_argument('--dataset', default='RoadmapSample', choices=['RoadmapRnd', 'RoadmapChr21', 'RoadmapChr1', 'RoadmapChr4', 'RoadmapSample'])
+    parser.add_argument('--dataset', default='RoadmapSample', choices=[
+        'RoadmapRnd', 'RoadmapChr21', 'RoadmapChr1', 'RoadmapChr4', 'RoadmapSample'
+    ])
     parser.add_argument('--experiment_group', type=str, default=None)  
     parser.add_argument('--split_file', type=str, default="edice/data/roadmap/predictd_splits.json")
     # parser.add_argument('--model_type', type=str, default='attentive')
     # parser.add_argument('--model_class', type=str, default="CellAssayCrossFactoriser")
     parser.add_argument('--train_splits', type=str, default=["train"], nargs="+")
     # TODO add a val split arg with possibility of no val split.
-    parser.add_argument('--challenge', action="store_true")
     parser.add_argument('--test_run', action="store_true")
     parser.add_argument('--seed', default=211, type=int)
 
@@ -35,11 +37,9 @@ def parse_args():
     
     parser.add_argument('--n_attn_heads', type=int, default=4)
     parser.add_argument('--n_attn_layers', type=int, default=1)
-    parser.add_argument('--single_head', action="store_true")
-    parser.add_argument('--single_head_residual', action="store_true")
+
     parser.add_argument('--embed_dim', type=int, default=256)
     parser.add_argument('--lr', type=float, default=0.0003)
-    parser.add_argument('--layer_norm', type=str, choices=["pre", "post"], default=None)
     parser.add_argument('--intermediate_fc_dim', type=int, default=128)
     parser.add_argument('--transformer_dropout', type=float, default=0.1)
     parser.add_argument('--embedding_dropout', type=float, default=0.)
@@ -115,7 +115,7 @@ def main(args):
         start_epoch = 0
 
     print("Getting callbacks", flush=True)
-    callbacks = get_callbacks(args, dataset, checkpoint=checkpoint)
+    callbacks, output_dir = get_callbacks(args, dataset, checkpoint=checkpoint)
     train_model(model, dataset, epochs=args.epochs, callbacks=callbacks, 
                 test_run=args.test_run, checkpoint=checkpoint,
                 start_epoch=start_epoch, n_targets=args.n_targets,
@@ -123,9 +123,19 @@ def main(args):
                 per_track_metrics=not args.agg_metrics_only,
                 train_splits=args.train_splits)
 
+    model.dataset_predict(
+        dataset,
+        support_splits=args.train_splits,
+        val_split="test",
+        exclude_gaps=False,
+        exclude_blacklist=False,
+        save_preds=True,
+        outfile=os.path.join(output_dir, f"{args.dataset}_test_preds.npz"),
+    )
+
     if args.final_checkpoint:
         print("saving final weights", flush=True)
-        model.save_weights("checkpoints/train_end")
+        model.save_weights(os.path.join(output_dir, "/checkpoints/train_end"))
 
 
 if __name__ == '__main__':
