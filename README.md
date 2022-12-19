@@ -52,6 +52,10 @@ A typical run of this example script requires approximately ? minutes on a stand
 
 Full data and trained models to run the Roadmap training and ENTEx transfer learning scripts are available on request.
 
+# Run eDICE on your data
+
+__TODO__
+
 
 # License
 
