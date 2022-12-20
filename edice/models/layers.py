@@ -71,6 +71,19 @@ class InputExpander(tf.keras.layers.Layer):
         return obs_mat
 
 
+class TargetEmbeddingRetriever(tf.keras.layers.Layer):
+    
+    """
+    given a (batch_size, n_targets) tensor of target item ids
+    extract the corresponding slices from the (batch_size, n_items, embed_dim)
+    embedding tensor
+    """
+    
+    def call(self, inputs):
+        all_embeddings, target_ids = inputs[0], inputs[1]
+        return batched_gather(all_embeddings, target_ids, axis=1)
+
+
 class NodeInputMasker(tf.keras.layers.Layer):
 
     """

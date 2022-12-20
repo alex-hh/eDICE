@@ -154,13 +154,11 @@ class CrossContextualSignalEmbedder(tf.keras.layers.Layer):
         obs_vec, node_ids, feat_ids, query_ids = inputs
         embedded, node_mask = self.signal_embedder([obs_vec, node_ids, feat_ids],
                                                    training=training)
-        if self.n_attn_layers > 0:
-            for i in range(self.n_attn_layers-1):
-                embedded = getattr(self, f'transformer_{i}')(
-                    embedded, training=training, mask=node_mask)
-            embedded = getattr(self, f'transformer_{self.n_attn_layers-1}')(
-                embedded, query_ids, training=training, mask=node_mask)
-        else:
-            embedded = TargetEmbeddingRetriever()([embedded, query_ids])
+
+        for i in range(self.n_attn_layers-1):
+            embedded = getattr(self, f'transformer_{i}')(
+                embedded, training=training, mask=node_mask)
+        embedded = getattr(self, f'transformer_{self.n_attn_layers-1}')(
+            embedded, query_ids, training=training, mask=node_mask)
 
         return embedded
