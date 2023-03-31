@@ -47,8 +47,8 @@ To run the sample training script, the command is:
 
      python scripts/train_roadmap.py --experiment_name "myExperiment" --train_splits "train" --epochs 20 --transformation "arcsinh" --embed_dim 256 --lr 0.0003 --n_targets 120
 
-The sample script produces a trained edice model located in the _oputputs_ folder, as well as saving the predictions for the test tracks as a ? file. 
-A typical run of this example script requires approximately ? minutes on a standard laptop.
+The sample script produces a trained edice model located in the _oputputs_ folder, as well as saving the predictions for the test tracks as a .npz file. 
+A typical run of this example script requires approximately 40 minutes on a standard laptop.
 
 Full data and trained models to run the Roadmap training and ENTEx transfer learning scripts are available on request.
 
@@ -64,4 +64,4 @@ This project is covered under the MIT License.
 
 # Citation
 
-For usege of this package please cite the original paper [Getting Personal with Epigenetics: Towards Machine-Learning-Assisted Precision Epigenomics](https://www.biorxiv.org/content/10.1101/2022.02.11.479115v1).
+For usage of this package please cite the original paper [Getting Personal with Epigenetics: Towards Machine-Learning-Assisted Precision Epigenomics](https://www.biorxiv.org/content/10.1101/2022.02.11.479115v1).
