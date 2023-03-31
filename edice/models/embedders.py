@@ -139,7 +139,7 @@ class CrossContextualSignalEmbedder(tf.keras.layers.Layer):
                                      ffn_dropout=intermediate_fc_dropout,
                                      **transformer_kwargs))
 
-        assert n_attn_heads > 0:
+        assert n_attn_heads > 0
 
         setattr(self, f'transformer_{n_attn_layers-1}',
                 CrossTransformerBlock(

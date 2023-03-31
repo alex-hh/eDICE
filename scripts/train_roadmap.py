@@ -3,6 +3,8 @@ import tensorflow as tf
 import argparse, os
 import numpy as np
 
+import time
+
 from edice.data_loaders.dataset_config import load_dataset
 from edice.models.model_utils import load_model
 from edice.utils.train_utils import get_callbacks, find_checkpoint
@@ -139,5 +141,17 @@ def main(args):
 
 
 if __name__ == '__main__':
+    start_time = time.time()
+
     args = parse_args()
+    args.experiment_name = "myExperiment"
+    args.train_splits = ["train"]
+    args.epochs = 20
+    args.transformation = "arcsinh"
+    args.embed_dim =  256 
+    args.lr =  0.0003 
+    args.n_targets =  120
+
     main(args)
+
+    print("Script execution time: {} minutes".format((time.time()-start_time)/60))
