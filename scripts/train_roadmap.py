@@ -8,7 +8,7 @@ import time
 from edice.data_loaders.dataset_config import load_dataset
 from edice.models.model_utils import load_model
 from edice.utils.train_utils import get_callbacks, find_checkpoint
-
+from edice.utils.callbacks import RunningMetricPrinter, EpochTimer
 
 # hardcoded defaults, that are not configurable via command line
 # we could possibly have model-specific defaults as well
@@ -22,11 +22,16 @@ ROADMAP_DEFAULTS = dict(layer_norm_type=None,
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment_name', type=str)
+    
     parser.add_argument('--dataset', default='RoadmapSample', choices=[
         'RoadmapRnd', 'RoadmapChr21', 'RoadmapChr1', 'RoadmapChr4', 'RoadmapSample'
     ])
+    parser.add_argument('--data_dir', type=str, default="edice/sample_data")
+    
+    
     parser.add_argument('--experiment_group', type=str, default=None)  
-    parser.add_argument('--split_file', type=str, default="edice/data/roadmap/predictd_splits.json")
+    parser.add_argument('--split_file', type=str, default="edice/sample_data/roadmap/predictd_splits.json")
+    
     # parser.add_argument('--model_type', type=str, default='attentive')
     # parser.add_argument('--model_class', type=str, default="CellAssayCrossFactoriser")
     parser.add_argument('--train_splits', type=str, default=["train"], nargs="+")
@@ -68,8 +73,7 @@ def parse_args():
     
     return args
 
-# TODO: because custom loss must be defined at load_model time, I should
-# move compilation inside load model (since this also depends on a loss arg)
+
 def train_model(model, dataset, epochs, callbacks=None,
                 checkpoint=None, start_epoch=0, n_targets=120,
                 test_run=False, min_targets=None,
@@ -144,14 +148,8 @@ if __name__ == '__main__':
     start_time = time.time()
 
     args = parse_args()
-    args.experiment_name = "myExperiment"
-    args.train_splits = ["train"]
-    args.epochs = 20
-    args.transformation = "arcsinh"
-    args.embed_dim =  256 
-    args.lr =  0.0003 
-    args.n_targets =  120
-
+    # args.experiment_name = "myExperiment2"
+    # args.test_run = True
     main(args)
 
     print("Script execution time: {} minutes".format((time.time()-start_time)/60))
