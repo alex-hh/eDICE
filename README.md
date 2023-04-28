@@ -28,9 +28,12 @@ The eDICE models were trained on computers operating on Ubuntu 16.04 and Ubuntu 
 eDICE was developed using python 3.9. We recommend setting up a suitable environment using [Anaconda](https://www.anaconda.com/). 
 The environment can be created as follows
 
-     conda create -n edice python==3.9
-     conda activate edice
-     python setup.py install
+
+```bash
+conda create -n edice python==3.9
+conda activate edice
+python setup.py install
+```
 
 This operation will install all the package dependencies for eDICE, which should require only a few minutes on a typical computer. Alternatively, the requirements.txt file lists the dependencies used to perform the experiments presented in the paper.
 
@@ -45,7 +48,9 @@ Ensure that a suitable environment is setup and active (see Software requirement
  
 To run the sample training script, the command is:
 
-     python scripts/train_roadmap.py --experiment_name "myExperiment" --train_splits "train" --epochs 20 --transformation "arcsinh" --embed_dim 256 --lr 0.0003 --n_targets 120
+```bash
+python scripts/train_roadmap.py --experiment_name "myRoadmapExperiment" --train_splits "train" --epochs 20 --transformation "arcsinh" --embed_dim 256 --lr 0.0003 --n_targets 120
+```
 
 The sample script produces a trained edice model located in the _oputputs_ folder, as well as saving the predictions for the test tracks as a .npz file. 
 A typical run of this example script requires approximately 40 minutes on a standard laptop.
@@ -54,8 +59,20 @@ Full data and trained models to run the Roadmap training and ENTEx transfer lear
 
 # Run eDICE on your data
 
-__TODO__
+To run eDICE on custom data, the epigenomic tracks must be provided in a suitable HDF5 format. Utility functions to preprocess data in a suitable manner are under development. Once the data is processed, run the `train_eDICE.py` script as: 
 
+
+```bash
+python scripts/train_eDICE.py --experiment_name "myCustomExperiment" \
+     --dataset_filepath "roadmap/SAMPLE_chr21_roadmap_train.h5" \ # The processed HDF5 dataset
+     --data_dir "edice/sample_data" \ # The directory where the dataset and the annotations are contained
+     --idmap "edice/sample_data/roadmap/idmap.json" \ # A json containing the indexing of the assays and the cell types. See the example for a proper format 
+     --dataset_name "mySampleRoadmap" \ # The name of your dataset
+     --split_file "edice/sample_data/roadmap/predictd_splits.json" \ # A mapping of the tracks belonging to training, validation, and test sets
+     --gap_file "annotations/hg19gap.txt" \ # The gaps for the genome alignment
+     --blacklist_file "annotations/hg19-blacklist.v2.bed" \ # The blacklisted regions for the genome alignment
+     --train_splits "train" --epochs 20 --transformation "arcsinh" --embed_dim 256 --lr 0.0003 --n_targets 120 
+```
 
 # License
 
