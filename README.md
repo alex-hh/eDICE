@@ -32,6 +32,7 @@ The environment can be created as follows
 ```bash
 conda create -n edice python==3.9
 conda activate edice
+pip install -r requirements.txt
 python setup.py install
 ```
 
@@ -63,15 +64,7 @@ To run eDICE on custom data, the epigenomic tracks must be provided in a suitabl
 
 
 ```bash
-python scripts/train_eDICE.py --experiment_name "myCustomExperiment" \
-     --dataset_filepath "roadmap/SAMPLE_chr21_roadmap_train.h5" \ # The processed HDF5 dataset
-     --data_dir "edice/sample_data" \ # The directory where the dataset and the annotations are contained
-     --idmap "edice/sample_data/roadmap/idmap.json" \ # A json containing the indexing of the assays and the cell types. See the example for a proper format 
-     --dataset_name "mySampleRoadmap" \ # The name of your dataset
-     --split_file "edice/sample_data/roadmap/predictd_splits.json" \ # A mapping of the tracks belonging to training, validation, and test sets
-     --gap_file "annotations/hg19gap.txt" \ # The gaps for the genome alignment
-     --blacklist_file "annotations/hg19-blacklist.v2.bed" \ # The blacklisted regions for the genome alignment
-     --train_splits "train" --epochs 20 --transformation "arcsinh" --embed_dim 256 --lr 0.0003 --n_targets 120 
+python scripts/train_eDICE.py --experiment_name "myCustomExperiment" --dataset_filepath "roadmap/SAMPLE_chr21_roadmap_train.h5" --data_dir "sample_data" --idmap "sample_data/roadmap/idmap.json" --dataset_name "mySampleRoadmap" --split_file "sample_data/roadmap/predictd_splits.json" --gap_file "annotations/hg19gap.txt" --blacklist_file "annotations/hg19-blacklist.v2.bed" --train_splits "train" --epochs 20 --transformation "arcsinh" --embed_dim 256 --lr 0.0003 --n_targets 120
 ```
 
 # License
