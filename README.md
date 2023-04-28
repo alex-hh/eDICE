@@ -26,7 +26,7 @@ eDICE requires only a standard computer with enough RAM to support the in-memory
 The eDICE models were trained on computers operating on Ubuntu 16.04 and Ubuntu 22.04.
 
 eDICE was developed using python 3.9. We recommend setting up a suitable environment using [Anaconda](https://www.anaconda.com/). 
-The environment can be created as follows
+The environment and the package can be setup from the cloned eDICE folder as follows
 
 
 ```bash
