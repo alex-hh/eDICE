@@ -15,10 +15,10 @@ def parse_args():
     parser.add_argument('--experiment_name', type=str)
     
     parser.add_argument('--dataset_filepath', default="roadmap/SAMPLE_chr21_roadmap_train.h5")
-    parser.add_argument('--data_dir', default="edice/sample_data")
-    parser.add_argument('--idmap', default="edice/sample_data/roadmap/idmap.json")
+    parser.add_argument('--data_dir', default="sample_data")
+    parser.add_argument('--idmap', default="sample_data/roadmap/idmap.json")
     parser.add_argument('--dataset_name', default="mySampleRoadmap")
-    parser.add_argument('--split_file', type=str, default="edice/sample_data/roadmap/predictd_splits.json")
+    parser.add_argument('--split_file', type=str, default="sample_data/roadmap/predictd_splits.json")
     parser.add_argument('--gap_file', type=str, default="annotations/hg19gap.txt")
     parser.add_argument('--blacklist_file', type=str, default="annotations/hg19-blacklist.v2.bed")
     parser.add_argument('--track_resolution', type=int, default=25)                       
@@ -143,7 +143,7 @@ def main(args):
         exclude_gaps=False,
         exclude_blacklist=False,
         save_preds=True,
-        outfile=os.path.join(output_dir, f"{args.dataset}_test_preds.npz"),
+        outfile=os.path.join(output_dir, f"{args.dataset_name}_test_preds.npz"),
     )
 
     if args.final_checkpoint:
@@ -155,9 +155,6 @@ if __name__ == '__main__':
     start_time = time.time()
 
     args = parse_args()
-    
-    args.experiment_name = "myExperiment_custom"
-    args.test_run = True
     main(args)
 
     print("Script execution time: {} minutes".format((time.time()-start_time)/60))

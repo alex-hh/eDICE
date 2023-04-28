@@ -26,11 +26,10 @@ def parse_args():
     parser.add_argument('--dataset', default='RoadmapSample', choices=[
         'RoadmapRnd', 'RoadmapChr21', 'RoadmapChr1', 'RoadmapChr4', 'RoadmapSample'
     ])
-    parser.add_argument('--data_dir', type=str, default="edice/sample_data")
-    
+    parser.add_argument('--data_dir', type=str, default="sample_data")
     
     parser.add_argument('--experiment_group', type=str, default=None)  
-    parser.add_argument('--split_file', type=str, default="edice/sample_data/roadmap/predictd_splits.json")
+    parser.add_argument('--split_file', type=str, default="sample_data/roadmap/predictd_splits.json")
     
     # parser.add_argument('--model_type', type=str, default='attentive')
     # parser.add_argument('--model_class', type=str, default="CellAssayCrossFactoriser")
@@ -148,8 +147,6 @@ if __name__ == '__main__':
     start_time = time.time()
 
     args = parse_args()
-    # args.experiment_name = "myExperiment2"
-    # args.test_run = True
     main(args)
 
     print("Script execution time: {} minutes".format((time.time()-start_time)/60))
