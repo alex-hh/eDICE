@@ -4,9 +4,9 @@ import json
 import yaml
 import tensorflow as tf
 from tensorflow.keras.callbacks import CSVLogger, ModelCheckpoint, TensorBoard
-from data_loaders.metadata import read_splits_json
-from utils.callbacks import RunningMetricPrinter, EpochTimer, AssayAverager
-from utils.CONSTANTS import OUTPUT_DIR
+from edice.data_loaders.metadata import read_splits_json
+from edice.utils.callbacks import RunningMetricPrinter, EpochTimer, AssayAverager
+from edice.utils.CONSTANTS import OUTPUT_DIR
 
 
 class ConfigSaver(tf.keras.callbacks.Callback):
@@ -63,7 +63,7 @@ def get_callbacks(args, dataset, checkpoint=None):
                 args, output_dir / "config.yaml",
                 splits=splits, format="yaml"))
 
-    return callbacks
+    return callbacks, output_dir
 
 
 def save_config(config, filepath, format="yaml"):

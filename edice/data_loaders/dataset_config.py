@@ -1,7 +1,7 @@
 import copy
 
-from data_loaders.hdf5_datasets import HDF5Dataset
-from data_loaders.metadata import *
+from edice.data_loaders.hdf5_datasets import HDF5Dataset
+from edice.data_loaders.metadata import *
 
 
 class RoadmapDataset(HDF5Dataset, RoadmapMetadata):
@@ -13,16 +13,21 @@ dataset_configs = {}
 # A dataset class, filepath, idmap, (split) combination define a dataset
 ROADMAP = {"dataset_class": RoadmapDataset,
            "filepath": "roadmap/roadmap_tracks_shuffled.h5",  # relative to data_dir
-           "idmap": "data/roadmap/idmap.json",
+           "idmap": "edice/data/roadmap/idmap.json",
            "name": "RoadmapRnd"}  # relative to repo base
 dataset_configs['RoadmapRnd'] = ROADMAP
 
 PREDICTD = copy.deepcopy(ROADMAP)
-PREDICTD["splits"] = "data/roadmap/predictd_splits.json"  # relative to repo base
+# relative to repo base
+PREDICTD["splits"] = "data/roadmap/predictd_splits.json"
 PREDICTD["name"] = "PredictdRnd"
 dataset_configs['PredictdRnd'] = PREDICTD
 
-ROADMAP_SAMPLE = copy.deepcopy(ROADMAP)
+ROADMAP_SAMPLE = {"dataset_class": RoadmapDataset,
+                  "data_dir": "sample_data",
+                  "filepath": "roadmap/roadmap_tracks_shuffled.h5",  # relative to data_dir
+                  "idmap": "sample_data/roadmap/idmap.json",
+                  "name": "RoadmapRnd"}
 ROADMAP_SAMPLE["filepath"] = "roadmap/SAMPLE_chr21_roadmap_train.h5"
 dataset_configs['RoadmapSample'] = ROADMAP_SAMPLE
 
@@ -67,6 +72,7 @@ def load_dataset(dataset_name, **kwargs):
     config = dataset_configs[dataset_name].copy()
     dataset = config.pop('dataset_class')
     config.update(kwargs)
+    print(config)
     return dataset(**config)
 
 

@@ -10,7 +10,7 @@ import collections
 import re
 import tensorflow as tf
 from tensorflow.keras import backend as K
-from utils import transforms
+from edice.utils import transforms
 
 
 METRIC_NAMES = ["mse", "pearsonr", "auc", "auprc", "precision", "recall", "spearmanr", "loss"]
@@ -138,7 +138,7 @@ class PerDimMetric(tf.keras.metrics.Metric):
     to provide an average of per-dim metrics
     """
 
-    def reset_states(self):
+    def reset_state(self):
         """Resets all of the metric state variables.
         This function is called between epochs/steps,
         when a metric is evaluated during training.

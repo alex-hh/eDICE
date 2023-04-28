@@ -5,36 +5,28 @@ import numpy as np
 
 import time
 
-from edice.data_loaders.dataset_config import load_dataset
+from edice.data_loaders.custom_dataset import load_custom_dataset
 from edice.models.model_utils import load_model
 from edice.utils.train_utils import get_callbacks, find_checkpoint
-from edice.utils.callbacks import RunningMetricPrinter, EpochTimer
-
-# hardcoded defaults, that are not configurable via command line
-# we could possibly have model-specific defaults as well
-ROADMAP_DEFAULTS = dict(layer_norm_type=None,
-                        decoder_layers=2,
-                        decoder_hidden=2048,
-                        decoder_dropout=0.3,
-                        total_bins=None)
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment_name', type=str)
     
-    parser.add_argument('--dataset', default='RoadmapSample', choices=[
-        'RoadmapRnd', 'RoadmapChr21', 'RoadmapChr1', 'RoadmapChr4', 'RoadmapSample'
-    ])
-    parser.add_argument('--data_dir', type=str, default="sample_data")
+    parser.add_argument('--dataset_filepath', default="roadmap/SAMPLE_chr21_roadmap_train.h5")
+    parser.add_argument('--data_dir', default="sample_data")
+    parser.add_argument('--idmap', default="sample_data/roadmap/idmap.json")
+    parser.add_argument('--dataset_name', default="mySampleRoadmap")
+    parser.add_argument('--split_file', type=str, default="sample_data/roadmap/predictd_splits.json")
+    parser.add_argument('--gap_file', type=str, default="annotations/hg19gap.txt")
+    parser.add_argument('--blacklist_file', type=str, default="annotations/hg19-blacklist.v2.bed")
+    parser.add_argument('--track_resolution', type=int, default=25)                       
     
     parser.add_argument('--experiment_group', type=str, default=None)  
-    parser.add_argument('--split_file', type=str, default="sample_data/roadmap/predictd_splits.json")
-    
-    # parser.add_argument('--model_type', type=str, default='attentive')
-    # parser.add_argument('--model_class', type=str, default="CellAssayCrossFactoriser")
     parser.add_argument('--train_splits', type=str, default=["train"], nargs="+")
-    # TODO add a val split arg with possibility of no val split.
+
+    
     parser.add_argument('--test_run', action="store_true")
     parser.add_argument('--seed', default=211, type=int)
 
@@ -43,6 +35,14 @@ def parse_args():
     
     parser.add_argument('--n_attn_heads', type=int, default=4)
     parser.add_argument('--n_attn_layers', type=int, default=1)
+    
+    
+    parser.add_argument('--decoder_layers', type=int, default=2)
+    parser.add_argument('--decoder_hidden', type=int, default=2048)
+    parser.add_argument('--decoder_dropout', type=float, default=0.3)
+    parser.add_argument('--total_bins', default=None)
+    
+    parser.add_argument('--layer_norm_type', default=None)
 
     parser.add_argument('--embed_dim', type=int, default=256)
     parser.add_argument('--lr', type=float, default=0.0003)
@@ -58,14 +58,17 @@ def parse_args():
     parser.add_argument('--final_checkpoint', action="store_true")
     parser.add_argument('--resume', action="store_true",
                         help="resume training if an existing checkpoint is available")
+    
+    
     parser.add_argument('--agg_metrics_only', action="store_true")
     
-    parser.set_defaults(**ROADMAP_DEFAULTS)
-    
+
+
+
+
     args = parser.parse_args()
     if args.min_targets is not None:
         assert args.min_targets >= 1 and args.max_targets
-        # TODO be careful with this: maybe bad practice to have this conditional default?
         args.n_targets = None
     else:
         assert args.n_targets, "must either specify n_targets or (min, max) targets"
@@ -85,7 +88,7 @@ def train_model(model, dataset, epochs, callbacks=None,
         print("loading weights from checkpoint", checkpoint)
         model.load_weights(checkpoint)
     print(f"training for {epochs} epochs")
-    callbacks = callbacks or [RunningMetricPrinter(), EpochTimer()]
+    # callbacks = callbacks or [RunningMetricPrinter(), EpochTimer()]
     # dataset_fit and dataset_evaluate handle setting up metrics
     model.dataset_fit(dataset, n_targets=n_targets,
                       min_targets=min_targets,
@@ -102,10 +105,15 @@ def main(args):
     print(args)
     print('SETTING SEED', args.seed)
     np.random.seed(args.seed)
-
-    dataset = load_dataset(args.dataset,
-                           total_bins=1000 if args.test_run else None,
-                           splits=args.split_file)
+    
+    dataset = load_custom_dataset(total_bins=1000 if args.test_run else None,
+                           splits=args.split_file,
+                           filepath=args.dataset_filepath,
+                           idmap=args.idmap,
+                           name=args.dataset_name,
+                           data_dir=args.data_dir
+                           )
+    
     n_cells, n_assays = len(dataset.cells), len(dataset.assays)
     print("Loading model", flush=True)
     model = load_model(n_cells, n_assays, args, compile_model=True)
@@ -135,7 +143,7 @@ def main(args):
         exclude_gaps=False,
         exclude_blacklist=False,
         save_preds=True,
-        outfile=os.path.join(output_dir, f"{args.dataset}_test_preds.npz"),
+        outfile=os.path.join(output_dir, f"{args.dataset_name}_test_preds.npz"),
     )
 
     if args.final_checkpoint:

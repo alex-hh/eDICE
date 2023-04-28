@@ -4,9 +4,9 @@ import os
 import tensorflow as tf
 import numpy as np
 
-from utils import transforms, val_utils
-from data_loaders.data_generators import format_inputs
-from data_loaders import hdf5_utils
+from edice.utils import transforms, val_utils
+from edice.data_loaders.data_generators import format_inputs
+from edice.data_loaders import hdf5_utils
 
 
 class BaseModel(tf.keras.Model):
@@ -102,9 +102,11 @@ class BaseModel(tf.keras.Model):
                                                       min_targets=min_targets,
                                                       max_targets=max_targets,
                                                       shuffle=shuffle,
-                                                      fixed_inputs=self.fixed_inputs)
+                                                      #fixed_inputs=self.fixed_inputs
+                                                      )
         val_generator = dataset.get_val_generator(transform=self.transformation,
-                                                  fixed_inputs=self.fixed_inputs)
+                                                #   fixed_inputs=self.fixed_inputs
+                                                  )
         self.fit(train_generator, validation_data=val_generator, **fit_kwargs)
 
     def dataset_evaluate(self,
@@ -146,7 +148,7 @@ class BaseModel(tf.keras.Model):
         val_generator = dataset.get_val_generator(
             support_splits=support_splits, target_split=val_split,
             transform=self.transformation, exclude_gaps=exclude_gaps,
-            exclude_blacklist=exclude_blacklist, fixed_inputs=self.fixed_inputs,
+            exclude_blacklist=exclude_blacklist#, fixed_inputs=self.fixed_inputs,
         )
         target_tracks = dataset.splits[val_split]
         preds = self.predict(val_generator, callbacks=callbacks, **eval_kwargs)

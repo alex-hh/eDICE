@@ -57,8 +57,8 @@ def _keras_auc(targets, preds, track_names, peak_threshold=0.01):
         # sklearn seems to be much faster...
         target_track_peaks = peak_targets[:, track_i]
         pred_track_full = preds[:, track_i]
-        auc.reset_states()
-        auprc.reset_states()
+        auc.reset_state()
+        auprc.reset_state()
         auc.update_state(target_track_peaks, pred_track_full)
         auprc.update_state(target_track_peaks, pred_track_full)
         auc_name = "_".join([track_name,
@@ -127,7 +127,7 @@ def evaluate_peak_predictions(targets, preds, track_names,
             pred_track_peaks = peak_preds[:, track_i]
             for m in sett["metrics"]:
                 metric = classification_metrics[m]
-                metric.reset_states()
+                metric.reset_state()
                 metric.update_state(target_track_peaks,
                                     pred_track_peaks)
                 metric_name = "_".join([track_name, sett["name"],
