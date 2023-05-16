@@ -216,7 +216,10 @@ def main(args):
     support_tracks = selected_common_tracks
 
     # Reading the transfer individual's data
-    with h5py.File(join(args.data_folder, "{}_r.hdf5".format(args.transfer_individual)), "r") as f:
+    transfer_ind_fname = join(args.data_folder, "ENTEx_{}_tracks.hdf5".format(args.transfer_individual))
+    if not os.path.exists(transfer_ind_fname):
+        raise FileNotFoundError("Transfer individual data not found")
+    with h5py.File(transfer_ind_fname, "r") as f:
         print("Loading data...")
         tracks = f["tracks"].attrs["track_names"]
         target_tracks = [t for t in support_tracks if args.target_tissue in t]
@@ -266,7 +269,12 @@ def main(args):
     ##############################################################################################
     # Predicting target individual tracks
     # Reading the transfer individual's data
-    with h5py.File(join(args.data_folder, "{}_r.hdf5".format(args.target_individual)), "r") as f:
+    
+    target_ind_fname = join(args.data_folder, "ENTEx_{}_tracks.hdf5".format(args.target_individual))
+    if not os.path.exists(target_ind_fname):
+        raise FileNotFoundError("Target individual data not found")
+    
+    with h5py.File(target_ind_fname, "r") as f:
         print("Loading target individual data...")
         tracks = f["tracks"].attrs["track_names"]
         target_tracks = [t for t in support_tracks if args.target_tissue in t]
@@ -289,13 +297,12 @@ def main(args):
         transfer_data, transfer_cell_ids, transfer_assay_ids, transform='arcsinh')
     print("Finetuning target generator available\n")
     ft_callbacks = [
-        # RunningMetricPrinter(log_freq=500),
         tf.keras.callbacks.EarlyStopping(patience=5, monitor='loss', mode='min'),
         tf.keras.callbacks.ModelCheckpoint(filepath=checkpoints_path, monitor='loss', mode='min', save_weights_only=True, save_best_only=True)
     ]
     model.fit(target_ft_generator, callbacks=ft_callbacks, epochs=args.ft_epochs)
 
-    # Restoring best ft model
+    # Restoring best fine-tuned model
     model.load_weights(checkpoints_path)
 
     
@@ -309,12 +316,8 @@ def main(args):
     for i_batch in tqdm(range(len(test_generator))):
         batch, targets = test_generator[i_batch]
         batch_len = len(batch[0])
-        # if i_batch==0:
         predictions = model(batch, training=False).numpy()
-        # try:
         predicted_tracks[index:index+batch_len, :] = predictions
-        # except:
-        #     break
         index += batch_len
     if not os.path.exists(experiment_results_dir):
         os.makedirs(experiment_results_dir)
@@ -370,7 +373,6 @@ if __name__ == "__main__":
 
     parser.add_argument("--data_folder", type=str,
                         default="data/ENTEx/processed_data")
-    # parser.add_argument("--learning_rate", type=float, default=0.003)
     parser.add_argument("--ft_learning_rate", type=float, default=0.00003)
     parser.add_argument("--experiment_name", default="test_debug")
     parser.add_argument("--experiment_group", default="LOO_tissue_transfer")
