@@ -324,37 +324,38 @@ def main(args):
                                                     args.transfer_individual, args.target_individual, args.target_tissue)), predicted_tracks)
 
 
-    print("\n\nEvaluating metrics..\n")
+    ## UNCOMMENT TO ENABLE DIRECT EVALUATION OF METRICS
+    # print("\n\nEvaluating metrics..\n")
 
-    # Removing BL regions
-    predicted_tracks = predicted_tracks[blacklist_mask_no_gaps,:]
-    target_data = np.arcsinh(target_data[blacklist_mask_no_gaps,:])
+    # # Removing BL regions
+    # predicted_tracks = predicted_tracks[blacklist_mask_no_gaps,:]
+    # target_data = np.arcsinh(target_data[blacklist_mask_no_gaps,:])
 
-    genomewide_reconstruction = {"MSE Global": mse, "GW Corr": gwcorr}
-    MACS_vs_bins_classif = {"AUPRC MACS": auprc}
-    results_metrics = []
-    for j, track_name in tqdm(enumerate(target_tracks)):
-        for mname, mfun in genomewide_reconstruction.items():
-            val = mfun(target_data[:, j], predicted_tracks[:, j])
-            results_metrics.append(
-                {"track": track_name, "transfer_individual": args.transfer_individual, 
-                "target_individual": args.target_individual, 
-                "category": "Genome-Wide Signal Reconstruction",
-                    "predictor": "eDICE", "metric": mname, "value": val})
+    # genomewide_reconstruction = {"MSE Global": mse, "GW Corr": gwcorr}
+    # MACS_vs_bins_classif = {"AUPRC MACS": auprc}
+    # results_metrics = []
+    # for j, track_name in tqdm(enumerate(target_tracks)):
+    #     for mname, mfun in genomewide_reconstruction.items():
+    #         val = mfun(target_data[:, j], predicted_tracks[:, j])
+    #         results_metrics.append(
+    #             {"track": track_name, "transfer_individual": args.transfer_individual, 
+    #             "target_individual": args.target_individual, 
+    #             "category": "Genome-Wide Signal Reconstruction",
+    #                 "predictor": "eDICE", "metric": mname, "value": val})
 
-        obs_macs_mask = np.load("data/ENTEx/MACS_peaks/{}_{}_observed_raw.npy".format(
-                args.target_individual, track_name))[blacklist_mask_no_gaps].astype(bool)
-        for mname, mfun in MACS_vs_bins_classif.items():
-            val = mfun(obs_macs_mask, predicted_tracks[:, j])
-            results_metrics.append(
-                {"track": track_name, "transfer_individual": args.transfer_individual, 
-                "target_individual": args.target_individual, 
-                "category": "Genome-Wide Signal Reconstruction",
-                    "predictor": "eDICE", "metric": mname, "value": val})
+    #     obs_macs_mask = np.load("data/ENTEx/MACS_peaks/{}_{}_observed_raw.npy".format(
+    #             args.target_individual, track_name))[blacklist_mask_no_gaps].astype(bool)
+    #     for mname, mfun in MACS_vs_bins_classif.items():
+    #         val = mfun(obs_macs_mask, predicted_tracks[:, j])
+    #         results_metrics.append(
+    #             {"track": track_name, "transfer_individual": args.transfer_individual, 
+    #             "target_individual": args.target_individual, 
+    #             "category": "Genome-Wide Signal Reconstruction",
+    #                 "predictor": "eDICE", "metric": mname, "value": val})
 
-    results_metrics = pd.DataFrame(results_metrics)
-    results_metrics.to_csv(join(experiment_results_dir, "trsf-{}_tgt-{}_tgttissue-{}_metrics.csv".format(
-                                                    args.transfer_individual, args.target_individual, args.target_tissue)), index=False)
+    # results_metrics = pd.DataFrame(results_metrics)
+    # results_metrics.to_csv(join(experiment_results_dir, "trsf-{}_tgt-{}_tgttissue-{}_metrics.csv".format(
+    #                                                 args.transfer_individual, args.target_individual, args.target_tissue)), index=False)
 
     print("Analysis complete!")
 
