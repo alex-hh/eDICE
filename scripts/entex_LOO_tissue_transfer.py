@@ -13,7 +13,6 @@ from os.path import join
 from argparse import Namespace
 from tensorflow import keras
 from tensorflow.keras import backend as K
-# import tensorflow.keras.backend as K
 
 from edice.utils.train_utils import get_output_dir, ConfigSaver
 from edice.models.model_utils import load_model
@@ -216,7 +215,10 @@ def main(args):
     support_tracks = selected_common_tracks
 
     # Reading the transfer individual's data
-    with h5py.File(join(args.data_folder, "{}_r.hdf5".format(args.transfer_individual)), "r") as f:
+    transfer_ind_fname = join(args.data_folder, "ENTEx_{}_tracks.hdf5".format(args.transfer_individual))
+    if not os.path.exists(transfer_ind_fname):
+        raise FileNotFoundError("Transfer individual data not found")
+    with h5py.File(transfer_ind_fname, "r") as f:
         print("Loading data...")
         tracks = f["tracks"].attrs["track_names"]
         target_tracks = [t for t in support_tracks if args.target_tissue in t]
@@ -266,7 +268,12 @@ def main(args):
     ##############################################################################################
     # Predicting target individual tracks
     # Reading the transfer individual's data
-    with h5py.File(join(args.data_folder, "{}_r.hdf5".format(args.target_individual)), "r") as f:
+    
+    target_ind_fname = join(args.data_folder, "ENTEx_{}_tracks.hdf5".format(args.target_individual))
+    if not os.path.exists(target_ind_fname):
+        raise FileNotFoundError("Target individual data not found")
+    
+    with h5py.File(target_ind_fname, "r") as f:
         print("Loading target individual data...")
         tracks = f["tracks"].attrs["track_names"]
         target_tracks = [t for t in support_tracks if args.target_tissue in t]
@@ -289,13 +296,12 @@ def main(args):
         transfer_data, transfer_cell_ids, transfer_assay_ids, transform='arcsinh')
     print("Finetuning target generator available\n")
     ft_callbacks = [
-        # RunningMetricPrinter(log_freq=500),
         tf.keras.callbacks.EarlyStopping(patience=5, monitor='loss', mode='min'),
         tf.keras.callbacks.ModelCheckpoint(filepath=checkpoints_path, monitor='loss', mode='min', save_weights_only=True, save_best_only=True)
     ]
     model.fit(target_ft_generator, callbacks=ft_callbacks, epochs=args.ft_epochs)
 
-    # Restoring best ft model
+    # Restoring best fine-tuned model
     model.load_weights(checkpoints_path)
 
     
@@ -309,12 +315,8 @@ def main(args):
     for i_batch in tqdm(range(len(test_generator))):
         batch, targets = test_generator[i_batch]
         batch_len = len(batch[0])
-        # if i_batch==0:
         predictions = model(batch, training=False).numpy()
-        # try:
         predicted_tracks[index:index+batch_len, :] = predictions
-        # except:
-        #     break
         index += batch_len
     if not os.path.exists(experiment_results_dir):
         os.makedirs(experiment_results_dir)
@@ -322,37 +324,38 @@ def main(args):
                                                     args.transfer_individual, args.target_individual, args.target_tissue)), predicted_tracks)
 
 
-    print("\n\nEvaluating metrics..\n")
+    ## UNCOMMENT TO ENABLE DIRECT EVALUATION OF METRICS
+    # print("\n\nEvaluating metrics..\n")
 
-    # Removing BL regions
-    predicted_tracks = predicted_tracks[blacklist_mask_no_gaps,:]
-    target_data = np.arcsinh(target_data[blacklist_mask_no_gaps,:])
+    # # Removing BL regions
+    # predicted_tracks = predicted_tracks[blacklist_mask_no_gaps,:]
+    # target_data = np.arcsinh(target_data[blacklist_mask_no_gaps,:])
 
-    genomewide_reconstruction = {"MSE Global": mse, "GW Corr": gwcorr}
-    MACS_vs_bins_classif = {"AUPRC MACS": auprc}
-    results_metrics = []
-    for j, track_name in tqdm(enumerate(target_tracks)):
-        for mname, mfun in genomewide_reconstruction.items():
-            val = mfun(target_data[:, j], predicted_tracks[:, j])
-            results_metrics.append(
-                {"track": track_name, "transfer_individual": args.transfer_individual, 
-                "target_individual": args.target_individual, 
-                "category": "Genome-Wide Signal Reconstruction",
-                    "predictor": "eDICE", "metric": mname, "value": val})
+    # genomewide_reconstruction = {"MSE Global": mse, "GW Corr": gwcorr}
+    # MACS_vs_bins_classif = {"AUPRC MACS": auprc}
+    # results_metrics = []
+    # for j, track_name in tqdm(enumerate(target_tracks)):
+    #     for mname, mfun in genomewide_reconstruction.items():
+    #         val = mfun(target_data[:, j], predicted_tracks[:, j])
+    #         results_metrics.append(
+    #             {"track": track_name, "transfer_individual": args.transfer_individual, 
+    #             "target_individual": args.target_individual, 
+    #             "category": "Genome-Wide Signal Reconstruction",
+    #                 "predictor": "eDICE", "metric": mname, "value": val})
 
-        obs_macs_mask = np.load("data/ENTEx/MACS_peaks/{}_{}_observed_raw.npy".format(
-                args.target_individual, track_name))[blacklist_mask_no_gaps].astype(bool)
-        for mname, mfun in MACS_vs_bins_classif.items():
-            val = mfun(obs_macs_mask, predicted_tracks[:, j])
-            results_metrics.append(
-                {"track": track_name, "transfer_individual": args.transfer_individual, 
-                "target_individual": args.target_individual, 
-                "category": "Genome-Wide Signal Reconstruction",
-                    "predictor": "eDICE", "metric": mname, "value": val})
+    #     obs_macs_mask = np.load("data/ENTEx/MACS_peaks/{}_{}_observed_raw.npy".format(
+    #             args.target_individual, track_name))[blacklist_mask_no_gaps].astype(bool)
+    #     for mname, mfun in MACS_vs_bins_classif.items():
+    #         val = mfun(obs_macs_mask, predicted_tracks[:, j])
+    #         results_metrics.append(
+    #             {"track": track_name, "transfer_individual": args.transfer_individual, 
+    #             "target_individual": args.target_individual, 
+    #             "category": "Genome-Wide Signal Reconstruction",
+    #                 "predictor": "eDICE", "metric": mname, "value": val})
 
-    results_metrics = pd.DataFrame(results_metrics)
-    results_metrics.to_csv(join(experiment_results_dir, "trsf-{}_tgt-{}_tgttissue-{}_metrics.csv".format(
-                                                    args.transfer_individual, args.target_individual, args.target_tissue)), index=False)
+    # results_metrics = pd.DataFrame(results_metrics)
+    # results_metrics.to_csv(join(experiment_results_dir, "trsf-{}_tgt-{}_tgttissue-{}_metrics.csv".format(
+    #                                                 args.transfer_individual, args.target_individual, args.target_tissue)), index=False)
 
     print("Analysis complete!")
 
@@ -370,7 +373,6 @@ if __name__ == "__main__":
 
     parser.add_argument("--data_folder", type=str,
                         default="data/ENTEx/processed_data")
-    # parser.add_argument("--learning_rate", type=float, default=0.003)
     parser.add_argument("--ft_learning_rate", type=float, default=0.00003)
     parser.add_argument("--experiment_name", default="test_debug")
     parser.add_argument("--experiment_group", default="LOO_tissue_transfer")

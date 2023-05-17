@@ -105,7 +105,8 @@ def main(args):
 
     dataset = load_dataset(args.dataset,
                            total_bins=1000 if args.test_run else None,
-                           splits=args.split_file)
+                           splits=args.split_file,
+                           data_dir=args.data_dir)
     n_cells, n_assays = len(dataset.cells), len(dataset.assays)
     print("Loading model", flush=True)
     model = load_model(n_cells, n_assays, args, compile_model=True)
