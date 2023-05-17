@@ -56,7 +56,13 @@ python scripts/train_roadmap.py --experiment_name "myRoadmapExperiment" --train_
 The sample script produces a trained edice model located in the _oputputs_ folder, as well as saving the predictions for the test tracks as a .npz file. 
 A typical run of this example script requires approximately 40 minutes on a standard laptop.
 
-Full data and trained models to run the Roadmap training and ENTEx transfer learning scripts are available on request.
+Full data and trained models to run the Roadmap training and ENTEx transfer learning scripts are available at [Data for reproducing the training of eDICE model](https://doi.org/10.17617/3.VKEFB6). 
+
+To reproduce the model used for validation on the Roadmap dataset, download the `roadmap_tracks_shuffled.h5` file from the linked dataset, move it to a data directory e.g. `data/roadmap/roadmap_tracks_shuffled.h5` together with the `idmap.json` and the `predict_splits.json` files, include the `annotations` folder in the data folder, and run:
+
+```bash
+python scripts/train_roadmap.py --experiment_name "eDICE_Roadmap" --dataset "PredictdRnd" --data_dir "data" --split_file "data/roadmap/predictd_splits.json" --train_splits "train" "val" --epochs 50 --transformation "arcsinh" --embed_dim 256 --lr 0.0003 --n_targets 120
+```
 
 # Run eDICE on your data
 
@@ -66,6 +72,8 @@ To run eDICE on custom data, the epigenomic tracks must be provided in a suitabl
 ```bash
 python scripts/train_eDICE.py --experiment_name "myCustomExperiment" --dataset_filepath "roadmap/SAMPLE_chr21_roadmap_train.h5" --data_dir "sample_data" --idmap "sample_data/roadmap/idmap.json" --dataset_name "mySampleRoadmap" --split_file "sample_data/roadmap/predictd_splits.json" --gap_file "annotations/hg19gap.txt" --blacklist_file "annotations/hg19-blacklist.v2.bed" --train_splits "train" --epochs 20 --transformation "arcsinh" --embed_dim 256 --lr 0.0003 --n_targets 120
 ```
+
+
 
 # License
 
