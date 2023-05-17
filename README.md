@@ -61,7 +61,7 @@ Full data and trained models to run the Roadmap training and ENTEx transfer lear
 To reproduce the model used for validation on the Roadmap dataset, download the `roadmap_tracks_shuffled.h5` file from the linked dataset, move it to a data directory e.g. `data/roadmap/roadmap_tracks_shuffled.h5` together with the `idmap.json` and the `predict_splits.json` files, include the `annotations` folder in the data folder, and run:
 
 ```bash
-python scripts/train_roadmap.py --experiment_name "eDICE_Roadmap" --dataset "PredictdRnd" --data_dir "data" --split_file "data/roadmap/predictd_splits.json" --train_splits "train" "val" --epochs 50 --transformation "arcsinh" --embed_dim 256 --lr 0.0003 --n_targets 120
+python scripts/train_roadmap.py --experiment_name "eDICE_Roadmap" --dataset "RoadmapRnd" --data_dir "data" --split_file "data/roadmap/predictd_splits.json" --train_splits "train" "val" --epochs 50 --transformation "arcsinh" --embed_dim 256 --lr 0.0003 --n_targets 120
 ```
 
 # Run eDICE on your data
