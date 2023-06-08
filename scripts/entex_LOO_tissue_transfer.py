@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import h5py
 import itertools
-from torch import t
 import yaml
 import tensorflow as tf
 from tqdm import tqdm
@@ -17,127 +16,60 @@ from tensorflow.keras import backend as K
 from edice.utils.train_utils import get_output_dir, ConfigSaver
 from edice.models.model_utils import load_model
 from edice.data_loaders.data_generators import TissueLOO_TrainInMemGenerator, ValInMemGenerator
-from edice.utils.callbacks import Checkpoint, RunningMetricPrinter
 from sklearn.metrics import auc, precision_recall_curve
 
 
 individuals = ["male_37", "male_54", "female_53", "female_51"]
 
-selected_common_tracks = ['E065-H3K27ac',
- 'E065-H3K36me3',
- 'E065-H3K4me1',
- 'E065-H3K4me3',
- 'E065-H3K9me3',
- 'E079-H3K27ac',
- 'E079-H3K36me3',
- 'E079-H3K4me1',
- 'E079-H3K4me3',
- 'E079-H3K9me3',
- 'E094-H3K27ac',
- 'E094-H3K36me3',
- 'E094-H3K4me1',
- 'E094-H3K4me3',
- 'E094-H3K9me3',
- 'E096-H3K27ac',
- 'E096-H3K36me3',
- 'E096-H3K4me1',
- 'E096-H3K4me3',
- 'E096-H3K9me3',
- 'E106-H3K27ac',
- 'E106-H3K36me3',
- 'E106-H3K4me1',
- 'E106-H3K4me3',
- 'E106-H3K9me3',
- 'E113-H3K27ac',
- 'E113-H3K4me1',
- 'E113-H3K4me3',
- 'E113-H3K9me3']
+selected_common_tracks = ['aorta-H3K27ac',
+ 'aorta-H3K36me3',
+ 'aorta-H3K4me1',
+ 'aorta-H3K4me3',
+ 'aorta-H3K9me3',
+ 'esophagus_muscularis_mucosa-H3K27ac',
+ 'esophagus_muscularis_mucosa-H3K36me3',
+ 'esophagus_muscularis_mucosa-H3K4me1',
+ 'esophagus_muscularis_mucosa-H3K4me3',
+ 'esophagus_muscularis_mucosa-H3K9me3',
+ 'stomach-H3K27ac',
+ 'stomach-H3K36me3',
+ 'stomach-H3K4me1',
+ 'stomach-H3K4me3',
+ 'stomach-H3K9me3',
+ 'upper_lobe_of_left_lung-H3K27ac',
+ 'upper_lobe_of_left_lung-H3K36me3',
+ 'upper_lobe_of_left_lung-H3K4me1',
+ 'upper_lobe_of_left_lung-H3K4me3',
+ 'upper_lobe_of_left_lung-H3K9me3',
+ 'sigmoid_colon-H3K27ac',
+ 'sigmoid_colon-H3K36me3',
+ 'sigmoid_colon-H3K4me1',
+ 'sigmoid_colon-H3K4me3',
+ 'sigmoid_colon-H3K9me3',
+ 'spleen-H3K27ac',
+ 'spleen-H3K4me1',
+ 'spleen-H3K4me3',
+ 'spleen-H3K9me3']
+
+tissues = ['aorta',
+ 'esophagus_muscularis_mucosa',
+ 'stomach',
+ 'upper_lobe_of_left_lung',
+ 'sigmoid_colon',
+ 'spleen']
+assays = ["H3K36me3", "H3K4me1", "H3K4me3", "H3K9me3", "H3K27ac"]
+
 
 
 assay2id = {"H3K36me3":0, "H3K4me1":1, "H3K4me3":2, "H3K9me3":3, "H3K27ac":4}
-cell2id = {"E065": 0, "E079": 1, "E094":2, "E096":3, "E106": 4, "E113": 5}
+cell2id = {'aorta': 0,
+ 'esophagus_muscularis_mucosa': 1,
+ 'stomach': 2,
+ 'upper_lobe_of_left_lung': 3,
+ 'sigmoid_colon': 4,
+ 'spleen': 5}
 
-ind_pairings ={"male_37": "male_54",
-                "male_54": "male_37",
-                "female_53": "female_51",
-                "female_51": "female_53"}
-
-tissues = ["E065", "E079", "E094", "E096", "E106", "E113"]
-# TRAINING_SETUPS = list(itertools.product(individuals, tissues))
-
-TRAINING_SETUPS = [('male_37', 'male_54', 'E065'),
- ('male_37', 'male_54', 'E079'),
- ('male_37', 'male_54', 'E094'),
- ('male_37', 'male_54', 'E096'),
- ('male_37', 'male_54', 'E106'),
- ('male_37', 'male_54', 'E113'),
- ('male_37', 'female_53', 'E065'),
- ('male_37', 'female_53', 'E079'),
- ('male_37', 'female_53', 'E094'),
- ('male_37', 'female_53', 'E096'),
- ('male_37', 'female_53', 'E106'),
- ('male_37', 'female_53', 'E113'),
- ('male_37', 'female_51', 'E065'),
- ('male_37', 'female_51', 'E079'),
- ('male_37', 'female_51', 'E094'),
- ('male_37', 'female_51', 'E096'),
- ('male_37', 'female_51', 'E106'),
- ('male_37', 'female_51', 'E113'),
- ('male_54', 'male_37', 'E065'),
- ('male_54', 'male_37', 'E079'),
- ('male_54', 'male_37', 'E094'),
- ('male_54', 'male_37', 'E096'),
- ('male_54', 'male_37', 'E106'),
- ('male_54', 'male_37', 'E113'),
- ('male_54', 'female_53', 'E065'),
- ('male_54', 'female_53', 'E079'),
- ('male_54', 'female_53', 'E094'),
- ('male_54', 'female_53', 'E096'),
- ('male_54', 'female_53', 'E106'),
- ('male_54', 'female_53', 'E113'),
- ('male_54', 'female_51', 'E065'),
- ('male_54', 'female_51', 'E079'),
- ('male_54', 'female_51', 'E094'),
- ('male_54', 'female_51', 'E096'),
- ('male_54', 'female_51', 'E106'),
- ('male_54', 'female_51', 'E113'),
- ('female_53', 'male_37', 'E065'),
- ('female_53', 'male_37', 'E079'),
- ('female_53', 'male_37', 'E094'),
- ('female_53', 'male_37', 'E096'),
- ('female_53', 'male_37', 'E106'),
- ('female_53', 'male_37', 'E113'),
- ('female_53', 'male_54', 'E065'),
- ('female_53', 'male_54', 'E079'),
- ('female_53', 'male_54', 'E094'),
- ('female_53', 'male_54', 'E096'),
- ('female_53', 'male_54', 'E106'),
- ('female_53', 'male_54', 'E113'),
- ('female_53', 'female_51', 'E065'),
- ('female_53', 'female_51', 'E079'),
- ('female_53', 'female_51', 'E094'),
- ('female_53', 'female_51', 'E096'),
- ('female_53', 'female_51', 'E106'),
- ('female_53', 'female_51', 'E113'),
- ('female_51', 'male_37', 'E065'),
- ('female_51', 'male_37', 'E079'),
- ('female_51', 'male_37', 'E094'),
- ('female_51', 'male_37', 'E096'),
- ('female_51', 'male_37', 'E106'),
- ('female_51', 'male_37', 'E113'),
- ('female_51', 'male_54', 'E065'),
- ('female_51', 'male_54', 'E079'),
- ('female_51', 'male_54', 'E094'),
- ('female_51', 'male_54', 'E096'),
- ('female_51', 'male_54', 'E106'),
- ('female_51', 'male_54', 'E113'),
- ('female_51', 'female_53', 'E065'),
- ('female_51', 'female_53', 'E079'),
- ('female_51', 'female_53', 'E094'),
- ('female_51', 'female_53', 'E096'),
- ('female_51', 'female_53', 'E106'),
- ('female_51', 'female_53', 'E113')]
-
+TRAINING_SETUPS = list(itertools.product(individuals, individuals, tissues))
 
 
 def auprc(target, pred, **kwargs):
@@ -154,11 +86,9 @@ def gwcorr(y_true, y_pred):
 
 
 def main(args):
-    # Load the dataset class for the Roadmap dataset to have access to precomputed gap masks
-    # dataset = load_dataset("PredictdChr21")
-    mask = np.load("data/ch21_mask.npy").astype(bool) #dataset._get_bin_mask(exclude_gaps=True)
-    n_cells = 6
-    n_assays = 5
+    mask = np.load("sample_data/annotations/hg19_ch21_gaps_mask.npy").astype(bool) 
+    n_cells = len(tissues)
+    n_assays = len(assays)
 
     # Filter the Blacklisted regions in chromosome 21
     blacklist = pd.read_csv(args.blacklist_path, sep="\t", header=None)
@@ -173,7 +103,7 @@ def main(args):
 
 
     # Create output directory where predicted tracks will be saved
-    experiment_results_dir = "outputs/results_ENTEx_LOO_tissue_transfer/{}".format(args.experiment_name)
+    experiment_results_dir = "outputs/results_{}/{}".format(args.experiment_group, args.experiment_name)
     if os.path.exists(join(experiment_results_dir, "trsf-{}_tgt-{}_tgttissue-{}_metrics.csv".format(
                                                     args.transfer_individual, args.target_individual, args.target_tissue))):
         print("Tissue already processed, quitting\n\n")
@@ -215,7 +145,7 @@ def main(args):
     support_tracks = selected_common_tracks
 
     # Reading the transfer individual's data
-    transfer_ind_fname = join(args.data_folder, "ENTEx_{}_tracks.hdf5".format(args.transfer_individual))
+    transfer_ind_fname = join(args.data_folder, "ENTEx_{}_chr21.hdf5".format(args.transfer_individual))
     if not os.path.exists(transfer_ind_fname):
         raise FileNotFoundError("Transfer individual data not found")
     with h5py.File(transfer_ind_fname, "r") as f:
@@ -249,9 +179,9 @@ def main(args):
     print("Initializing training generator...")
     training_generator = TissueLOO_TrainInMemGenerator(
         data, support_cell_ids, support_assay_ids, transform='arcsinh')
-    print(training_generator[0])
+    
     print("Training generator available\n")
-    model.fit(training_generator, callbacks=callbacks, epochs=args.epochs)#args.n_epochs)
+    model.fit(training_generator, callbacks=callbacks, epochs=args.epochs)
 
     del training_generator
 
@@ -269,7 +199,7 @@ def main(args):
     # Predicting target individual tracks
     # Reading the transfer individual's data
     
-    target_ind_fname = join(args.data_folder, "ENTEx_{}_tracks.hdf5".format(args.target_individual))
+    target_ind_fname = join(args.data_folder, "ENTEx_{}_chr21.hdf5".format(args.target_individual))
     if not os.path.exists(target_ind_fname):
         raise FileNotFoundError("Target individual data not found")
     
@@ -324,38 +254,6 @@ def main(args):
                                                     args.transfer_individual, args.target_individual, args.target_tissue)), predicted_tracks)
 
 
-    ## UNCOMMENT TO ENABLE DIRECT EVALUATION OF METRICS
-    # print("\n\nEvaluating metrics..\n")
-
-    # # Removing BL regions
-    # predicted_tracks = predicted_tracks[blacklist_mask_no_gaps,:]
-    # target_data = np.arcsinh(target_data[blacklist_mask_no_gaps,:])
-
-    # genomewide_reconstruction = {"MSE Global": mse, "GW Corr": gwcorr}
-    # MACS_vs_bins_classif = {"AUPRC MACS": auprc}
-    # results_metrics = []
-    # for j, track_name in tqdm(enumerate(target_tracks)):
-    #     for mname, mfun in genomewide_reconstruction.items():
-    #         val = mfun(target_data[:, j], predicted_tracks[:, j])
-    #         results_metrics.append(
-    #             {"track": track_name, "transfer_individual": args.transfer_individual, 
-    #             "target_individual": args.target_individual, 
-    #             "category": "Genome-Wide Signal Reconstruction",
-    #                 "predictor": "eDICE", "metric": mname, "value": val})
-
-    #     obs_macs_mask = np.load("data/ENTEx/MACS_peaks/{}_{}_observed_raw.npy".format(
-    #             args.target_individual, track_name))[blacklist_mask_no_gaps].astype(bool)
-    #     for mname, mfun in MACS_vs_bins_classif.items():
-    #         val = mfun(obs_macs_mask, predicted_tracks[:, j])
-    #         results_metrics.append(
-    #             {"track": track_name, "transfer_individual": args.transfer_individual, 
-    #             "target_individual": args.target_individual, 
-    #             "category": "Genome-Wide Signal Reconstruction",
-    #                 "predictor": "eDICE", "metric": mname, "value": val})
-
-    # results_metrics = pd.DataFrame(results_metrics)
-    # results_metrics.to_csv(join(experiment_results_dir, "trsf-{}_tgt-{}_tgttissue-{}_metrics.csv".format(
-    #                                                 args.transfer_individual, args.target_individual, args.target_tissue)), index=False)
 
     print("Analysis complete!")
 
@@ -369,16 +267,21 @@ MODEL_DEFAULTS = dict(layer_norm_type=None,
 
 if __name__ == "__main__":
     parser = ArgumentParser()
+    
+    
     parser.add_argument("--training_setup", type=int, default=5)
+    parser.add_argument("--transfer_individual", type=str)
+    parser.add_argument("--target_individual", type=str)
+    parser.add_argument("--target_tissue", type=str)
 
     parser.add_argument("--data_folder", type=str,
-                        default="data/ENTEx/processed_data")
+                        default="/home/gvisona/Projects/eDICE1/data/ENTEx/processed_data/remapped_tissues")
     parser.add_argument("--ft_learning_rate", type=float, default=0.00003)
-    parser.add_argument("--experiment_name", default="test_debug")
+    parser.add_argument("--experiment_name", default="ENTEX_finetune")
     parser.add_argument("--experiment_group", default="LOO_tissue_transfer")
     parser.add_argument("--epochs", default=20, type=int)
     parser.add_argument("--ft_epochs", default=15, type=int)
-    parser.add_argument("--blacklist_path", type=str, default="localdata/hg19-blacklist.v2.bed")
+    parser.add_argument("--blacklist_path", type=str, default="sample_data/annotations/hg19-blacklist.v2.bed")
 
 
     parser.add_argument('--train_splits', type=str, default=["train"], nargs="+")
@@ -399,21 +302,16 @@ if __name__ == "__main__":
     parser.add_argument('--transformer_dropout', type=float, default=0.1)
     parser.add_argument('--embedding_dropout', type=float, default=0.)
     parser.add_argument('--intermediate_fc_dropout', type=float, default=0.)
-    
-    # parser.add_argument('--n_targets', type=int, default=14)
-    # parser.add_argument('--min_targets', type=int, default=None)
-    # parser.add_argument('--max_targets', type=int, default=None)
+
     
     parser.add_argument('--checkpoint', action="store_true")
-    # parser.add_argument('--resume', action="store_true",
-    #                     help="resume training if an existing checkpoint is available")
-    # parser.add_argument('--agg_metrics_only', action="store_true")
+
     parser.set_defaults(**MODEL_DEFAULTS)
     args = parser.parse_args()
 
+    if args.training_setup is not None:
+        ts = TRAINING_SETUPS[args.training_setup]
+        args.transfer_individual, args.target_individual, args.target_tissue = ts
 
-    ts = TRAINING_SETUPS[args.training_setup]
-    args.transfer_individual, args.target_individual, args.target_tissue = ts
-    # args.transfer_individual = ind_pairings[args.target_individual]
 
     main(args)
