@@ -275,7 +275,7 @@ if __name__ == "__main__":
     parser.add_argument("--target_tissue", type=str)
 
     parser.add_argument("--data_folder", type=str,
-                        default="/home/gvisona/Projects/eDICE1/data/ENTEx/processed_data/remapped_tissues")
+                        default="data/ENTEx/processed_data")
     parser.add_argument("--ft_learning_rate", type=float, default=0.00003)
     parser.add_argument("--experiment_name", default="ENTEX_finetune")
     parser.add_argument("--experiment_group", default="LOO_tissue_transfer")
