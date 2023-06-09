@@ -1,4 +1,7 @@
 # eDICE
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8017391.svg)](https://doi.org/10.5281/zenodo.8017391)
+
 Epigenomic Data Imputation via Contextualised Embeddings
 
 ![eDICE architecture](eDICE_architecture_s.png "epigenomic Data Imputation through Contextualised Embeddings (eDICE)")
