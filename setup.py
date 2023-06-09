@@ -7,7 +7,10 @@ setuptools.setup(
     packages=["edice", "edice.data_loaders", "edice.models", "edice.utils"],
     description="epigenomics Data Imputation through Contextualized Embeddings (eDICE)",
     long_description="""
-    Software package for the eDICE model presented in the paper "Getting Personal with Epigenetics: Towards Machine-Learning-Assisted Precision Epigenomics" (Hawkins-Hooker et al.)
+            Code accompanying the paper ``Getting Personal with Epigenetics:
+               Towards Individual-specific Epigenomic Imputation with Machine
+               Learning'', introducing the eDICE model for epigenomic
+               imputation.
     """,
     keywords="epigenomics, imputation, transformer, attention, deep learning, machine learning",
     python_requires=">=3.8, <4",
