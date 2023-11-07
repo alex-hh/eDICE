@@ -6,7 +6,7 @@ Epigenomic Data Imputation via Contextualised Embeddings
 
 ![eDICE architecture](eDICE_architecture_s.png "epigenomic Data Imputation through Contextualised Embeddings (eDICE)")
 
-This repository contains the code for the model presented in the paper [Getting Personal with Epigenetics: Towards Machine-Learning-Assisted Precision Epigenomics](https://www.biorxiv.org/content/10.1101/2022.02.11.479115v1).
+This repository contains the code for the model presented in the paper [Getting Personal with Epigenetics: Towards Individual-Specific Epigenomic Imputation with Machine Learning](https://www.nature.com/articles/s41467-023-40211-2).
 
 # Overview
 
