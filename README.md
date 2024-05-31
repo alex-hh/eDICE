@@ -82,7 +82,10 @@ python scripts/train_eDICE.py --experiment_name "myCustomExperiment" --dataset_f
 
 This project is covered under the MIT License.
 
+# Funding
+
+This project has received funding from the European Union's Framework Programme for Research and Innovation Horizon 2020 (2014-2020) under the Marie Skłodowska-Curie Grant Agreement No. 813533-MSCA-ITN-2018
 
 # Citation
 
-For usage of this package please cite the original paper [Getting Personal with Epigenetics: Towards Machine-Learning-Assisted Precision Epigenomics](https://www.biorxiv.org/content/10.1101/2022.02.11.479115v1).
+For usage of this package please cite the original paper [Getting personal with epigenetics: towards individual-specific epigenomic imputation with machine learning](https://www.nature.com/articles/s41467-023-40211-2).
